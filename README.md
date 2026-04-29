@@ -1,6 +1,6 @@
 <div align="center">
 
-# Satset
+# Sat·Set
 
 ![CI](https://github.com/kurang-dana/satset/actions/workflows/build.yml/badge.svg)
 ![Version](https://img.shields.io/github/v/release/kurang-dana/satset?label=version&color=orange)
