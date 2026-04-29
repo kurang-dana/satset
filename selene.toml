@@ -1,5 +1,5 @@
 std = "roblox"
-exclude = ["references/**", "**/_Index/**"]
+exclude = ["references/**", "**/_Index/**", "benchmark/**"]
 
 [rules]
 unused_variable = "warn"
