@@ -48,6 +48,67 @@ Satset provides two distinct communication modes:
 - **MTU Management**: Automatic fragmentation for batches exceeding the MTU limit.
 - **Guard**: Built-in server-side rate limiting using a token bucket algorithm to prevent network-based exploits.
 
+# Architecture
+
+The following diagram shows how data flows through Satset's internal modules, from the public API down to the wire.
+
+```mermaid
+flowchart TB
+    subgraph API["Public API"]
+        DP["definePacket()"]
+        DC["defineChannel()"]
+    end
+
+    subgraph Serialization
+        SC["SchemaCompiler"]
+        SR["Serializer"]
+        SN["Sanitizer"]
+        TP["Types"]
+    end
+
+    subgraph Core
+        BT["Batcher"]
+        GD["Guard"]
+        BR["Bridge"]
+    end
+
+    subgraph Networking
+        PK["Packet"]
+        CH["Channel"]
+    end
+
+    subgraph Transport["Wire"]
+        RE["RemoteEvent"]
+        URE["UnreliableRemoteEvent"]
+    end
+
+    DP --> PK
+    DC --> CH
+
+    PK -->|"encode(schema, data)"| SR
+    SR --> SC
+    SR --> SN
+    SC --> TP
+
+    PK -->|"enqueue(id, payload)"| BT
+    CH -->|"encodeDelta(bitmask)"| BT
+
+    BT -->|"flush @ PostSimulation"| BR
+
+    BR --> RE
+    BR --> URE
+
+    RE -->|"incoming payload"| GD
+    URE -->|"incoming payload"| GD
+
+    GD -->|"consume(player)"| PK
+    GD -->|"consume(player)"| CH
+
+    SN -.->|"clamp NaN/Inf"| SR
+```
+
+For a detailed step-by-step walkthrough of a packet's lifecycle, see the [Architecture Guide](docs/guide/architecture.md).
+
 # Usage
 
 ### Installation
@@ -55,8 +116,10 @@ Satset provides two distinct communication modes:
 Add Satset to your `wally.toml`:
 
 ```toml
-Satset = "mathtech/satset@0.1.0"
+Satset = "protheeuz/satset@0.1.0"
 ```
+
+Then run `wally install`.
 
 ### Initialization
 
