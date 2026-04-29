@@ -6,6 +6,7 @@ on:
 
 jobs:
   welcome:
+    name: Welcome Contributor
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -23,6 +24,7 @@ jobs:
             Happy coding! >.<
 
   labeling:
+    name: Auto Labeling
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write

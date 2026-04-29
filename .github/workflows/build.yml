@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**.luau"
+      - ".github/workflows/build.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "**.luau"
+
+jobs:
+  format-and-lint:
+    name: Format & Lint Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Rokit
+        uses: CompeyDev/setup-rokit@v0.1.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Auto-format code with StyLua
+        run: |
+          echo "Running StyLua auto-formatting..."
+          stylua .
+
+          # Check if there are any changes
+          if ! git diff --quiet; then
+            echo "Code formatting changes detected"
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add .
+            git commit -m "style: auto-format code with StyLua [skip ci]"
+
+            # Only push if this is a push event (not PR)
+            if [ "${{ github.event_name }}" == "push" ]; then
+              git push
+              echo "Auto-formatted code pushed to repository"
+            else
+              echo "Code formatting changes detected in PR (not auto-pushed)"
+            fi
+          else
+            echo "Code is already properly formatted"
+          fi
+
+      - name: Run Selene (Static Analysis)
+        run: |
+          echo "Running Selene static analysis..."
+          selene . --display-style=quiet
+
+      - name: Verify StyLua formatting (post auto-format)
+        run: |
+          echo "Verifying code formatting..."
+          stylua --check .
+
+      - name: Enforce commit message format & disallow emoji (main only)
+        if: ${{ github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.base_ref == 'main') }}
+        run: |
+          python3 - <<'PY'
+          import re, subprocess, sys
+
+          # Get recent commit bodies and subjects (only last 10 commits)
+          try:
+              bodies = subprocess.check_output(['git','log','-n','10','--pretty=%B']).decode(errors='ignore')
+              subjects = subprocess.check_output(['git','log','-n','10','--pretty=%s']).decode().splitlines()
+          except Exception as e:
+              print('Error: Could not read git log:', e)
+              sys.exit(1)
+
+          emoji_pattern = re.compile(u"[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\u2600-\u26FF\u2700-\u27BF]+", flags=re.UNICODE)
+
+          if emoji_pattern.search(bodies):
+              print('Error: Emoji detected in recent commit messages. Remove emojis from commit messages/logs.')
+              sys.exit(1)
+
+          pattern = re.compile(r'^(feat|fix|refactor|perf|docs|chore|ci|style|release|test)(\(.+\))?:\s', re.IGNORECASE)
+          bad = [s for s in subjects if s.strip() and not s.startswith('Merge') and not pattern.match(s)]
+          if bad:
+              print('Error: Commit message subjects must follow conventions: feat|fix|refactor|perf|docs|chore|ci|style|release|test')
+              for b in bad:
+                  print(' -', b)
+              sys.exit(1)
+
+          print('Commit messages OK (no emoji, conventional subjects)')
+          PY
+
+      - name: Verify Rojo project structure
+        run: |
+          rojo sourcemap default.project.json --output /tmp/sourcemap.json
+
+  analysis:
+    name: Code Analysis
+    runs-on: ubuntu-latest
+    needs: [format-and-lint]
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for dead code markers
+        run: |
+          if grep -r "TODO\|FIXME" --include="*.luau" . > /tmp/todos.txt 2>&1; then
+            if [ -s /tmp/todos.txt ]; then
+              echo "Found TODO/FIXME comments (not blocking):"
+              cat /tmp/todos.txt
+            fi
+          fi
+
+  summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [format-and-lint]
+    if: always()
+
+    steps:
+      - name: Check lint status
+        run: |
+          if [ "${{ needs.format-and-lint.result }}" == "failure" ]; then
+            echo "Code quality checks failed"
+            exit 1
+          else
+            echo "All code quality checks passed"
+          fi
