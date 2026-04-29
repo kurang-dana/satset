@@ -52,7 +52,7 @@ jobs:
         uses: CompeyDev/setup-rokit@v0.1.0
 
       - name: Install dependencies
-        run: rokit install
+        run: rokit install --trust-all
 
       - name: Build RBXM
         run: rojo build -o Satset-v${{ steps.changelog_info.outputs.version }}.rbxm build.project.json
