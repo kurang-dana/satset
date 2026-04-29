@@ -1,8 +1,18 @@
 [package]
 name = "protheeuz/satset"
+description = "High-performance, buffer-backed hybrid networking for Roblox with zero-allocation delta synchronization."
 version = "0.1.0"
-description = "A next-generation Roblox networking library with automatic delta compression and buffer-backed state sync."
-authors = ["Iqbal F"]
 license = "MIT"
+authors = ["protheeuz"]
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
+exclude = [
+	".gitattributes",
+	".gitignore",
+	"default.project.json",
+	"package.json",
+	"stylua.toml",
+	"selene.toml",
+]
+
+[dependencies]

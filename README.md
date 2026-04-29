@@ -1,5 +1,4 @@
 # Satset ![CI](https://github.com/protheeuz/satset/actions/workflows/build.yml/badge.svg)
-
 ====
 
 **sat·set** /sat-sèt/ *adjective (slang)* — Indonesian colloquialism for being rapid, efficient, and quick to act.
@@ -30,16 +29,6 @@ Satset gives you two ways to talk to the network:
 - **Unreliable Transport**: For data that doesn't need to be perfect (like positions), we use `UnreliableRemoteEvent`. We include sequence numbers and stale packet checks so you don't have to deal with out-of-order data.
 - **MTU Safety**: If a batch gets too big, we split it up automatically. You don't have to worry about hitting the 900-byte limit and losing data.
 - **Leaky Bucket Guard**: We've included a built-in rate limiter for the server. It stops exploiters from flooding your remotes and crashing your instances.
-
-# Comparison
-
-| Feature | Satset | ByteNet / Zap | ReplicaService |
-| :--- | :--- | :--- | :--- |
-| **Serialization** | Buffer (Native) | Buffer (Native) | Table (JSON-like) |
-| **Sync Type** | Delta-Synced | Stateless Only | Full/Patch Sync |
-| **Batching** | Automatic | Manual/Plugin | Internal |
-| **GC Pressure** | Near-Zero | Low | High |
-| **Transport** | Hybrid (Reliable/Unreliable) | Reliable/Unreliable | Reliable Only |
 
 # Usage
 

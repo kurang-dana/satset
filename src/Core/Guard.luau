@@ -1,4 +1,3 @@
---!strict
 -- This file is part of the Satset networking library and is licensed under MIT License; see LICENSE.txt for details
 -- Guard — server-side leaky bucket rate limiter for DDoS protection.
 

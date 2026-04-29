@@ -1,4 +1,3 @@
---!strict
 -- This file is part of the Satset networking library and is licensed under MIT License; see LICENSE.txt for details
 -- SchemaCompiler — transforms a schema dictionary into a deterministic ordered structure.
 
