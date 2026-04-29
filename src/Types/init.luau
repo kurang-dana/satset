@@ -160,6 +160,9 @@ Types.u4 = {
 Types.string8 = {
 	read = function(b: buffer, cursor: number)
 		local len = readu8(b, cursor)
+		if cursor + 1 + len > buffer.len(b) then
+			return ""
+		end
 		return readstring(b, cursor + 1, len)
 	end,
 	write = function(b: buffer, cursor: number, value: string)
@@ -177,6 +180,9 @@ Types.string8 = {
 Types.string16 = {
 	read = function(b: buffer, cursor: number)
 		local len = readu16(b, cursor)
+		if cursor + 2 + len > buffer.len(b) then
+			return ""
+		end
 		return readstring(b, cursor + 2, len)
 	end,
 	write = function(b: buffer, cursor: number, value: string)
@@ -458,9 +464,13 @@ end
 function Types.array(elementType: Type<any>): Type<{ any }>
 	return {
 		read = function(b: buffer, cursor: number)
+			local bufLen = buffer.len(b)
 			local len = readu16(b, cursor)
 			local arr, pos = table.create(len), cursor + 2
 			for i = 1, len do
+				if pos + elementType.size > bufLen then
+					break
+				end
 				local val = elementType.read(b, pos)
 				arr[i] = val
 				pos += elementType.getSize(val)
@@ -492,11 +502,18 @@ end
 function Types.map(keyType: Type<any>, valueType: Type<any>): Type<{ [any]: any }>
 	return {
 		read = function(b: buffer, cursor: number)
+			local bufLen = buffer.len(b)
 			local count = readu16(b, cursor)
 			local result, pos = {}, cursor + 2
 			for _ = 1, count do
+				if pos + keyType.size > bufLen then
+					break
+				end
 				local key = keyType.read(b, pos)
 				pos += keyType.getSize(key)
+				if pos + valueType.size > bufLen then
+					break
+				end
 				local val = valueType.read(b, pos)
 				pos += valueType.getSize(val)
 				result[key] = val
