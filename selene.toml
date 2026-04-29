@@ -1,7 +1,5 @@
 std = "roblox"
-
-[runner]
-include = ["src/**/*.luau", "tests/**/*.luau", "scripts/**/*.luau"]
+exclude = ["references/**", "**/_Index/**"]
 
 [rules]
 unused_variable = "warn"
