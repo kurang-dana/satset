@@ -1,0 +1,14 @@
+# Build artifacts
+*.rbxl
+*.rbxlx
+*.rbxm
+
+# Roblox Studio lock files
+*.rbxlx.lock
+*.rbxl.lock
+
+# Wally packages
+wally.lock
+
+# Sourcemap
+sourcemap.json

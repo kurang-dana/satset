@@ -1,0 +1,8 @@
+[package]
+name = "protheeuz/satset"
+version = "0.1.0"
+description = "A next-generation Roblox networking library with automatic delta compression and buffer-backed state sync."
+authors = ["Iqbal F"]
+license = "MIT"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"

@@ -1,0 +1,11 @@
+std = "roblox"
+
+[runner]
+include = ["src/**/*.luau", "tests/**/*.luau", "scripts/**/*.luau"]
+
+[rules]
+unused_variable = "warn"
+multiple_assign = "allow"
+empty_if = "warn"
+empty_loop = "warn"
+shadowing = "warn"
