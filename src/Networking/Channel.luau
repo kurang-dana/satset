@@ -270,7 +270,9 @@ function Channel._applyUpdate(b: buffer)
 			state[field.name] = field.type.read(clientBuf, field.offset)
 		end
 		for _, callback in def.subscribers do
-			callback(entityId, state)
+			xpcall(callback, function(err)
+				warn(`[Satset] Channel '{def.name}' subscriber error: {err}`)
+			end, entityId, state)
 		end
 	end
 end

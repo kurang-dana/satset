@@ -113,7 +113,9 @@ function Packet._dispatchSingle(packetId: number, payload: buffer, sender: Playe
 	end
 
 	for _, listener in def.listeners do
-		listener(data, sender)
+		xpcall(listener, function(err)
+			warn(`[Satset] Packet '{def.name}' listener error: {err}`)
+		end, data, sender)
 	end
 end
 

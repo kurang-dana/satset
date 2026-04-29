@@ -22,6 +22,7 @@ local CHANNEL_UNRELIABLE_NAME = "__SatsetChannelUnreliable"
 
 -- [ State ]
 
+local _initialized = false
 local _guard: any = nil
 local channelReliable: RemoteEvent
 local channelUnreliable: UnreliableRemoteEvent
@@ -48,6 +49,12 @@ export type SatsetConfig = {
 	the client before using any packets or channels.
 ]]
 function Satset.start(config: SatsetConfig?)
+	if _initialized then
+		warn("[Satset] Already initialized. Ignoring duplicate start() call.")
+		return
+	end
+	_initialized = true
+
 	local context = if IS_SERVER then "Server" else "Client"
 	print(`[Satset v{VERSION}] Initializing on {context}`)
 
