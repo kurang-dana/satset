@@ -21,9 +21,14 @@ jobs:
         run: |
           header_line=$(grep -E "^## \[[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?\]" CHANGELOG.md | head -1)
           version=$(echo "$header_line" | sed 's/.*\[\([^]]*\)\].*/\1/')
-          title=$(echo "$header_line" | sed 's/## \[\(.*\)\] — \(.*\)/Release \1 - \2/')
+          raw_date=$(echo "$header_line" | sed 's/.* — //')
+          
+          # Format tanggal jadi cantik (April 30, 2026)
+          pretty_date=$(date -d "$raw_date" +"%B %e, %Y")
+          
           echo "version=$version" >> $GITHUB_OUTPUT
-          echo "title=$title" >> $GITHUB_OUTPUT
+          echo "title=Release v$version" >> $GITHUB_OUTPUT
+          echo "pretty_date=$pretty_date" >> $GITHUB_OUTPUT
 
       - name: Extract changelog for this version
         id: changelog
@@ -44,6 +49,8 @@ jobs:
           ' CHANGELOG.md > /tmp/release_notes.txt
           {
             echo 'release_notes<<EOF'
+            echo "### Release ${{ steps.changelog_info.outputs.version }} — ${{ steps.changelog_info.outputs.pretty_date }}"
+            echo ""
             cat /tmp/release_notes.txt
             echo 'EOF'
           } >> $GITHUB_OUTPUT
@@ -57,7 +64,9 @@ jobs:
           rokit install
 
       - name: Build RBXM
-        run: rojo build -o Satset-v${{ steps.changelog_info.outputs.version }}.rbxm build.project.json
+        run: |
+          rojo build -o Satset-v${{ steps.changelog_info.outputs.version }}.rbxm build.project.json
+          ls -lh Satset-v${{ steps.changelog_info.outputs.version }}.rbxm
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -65,8 +74,8 @@ jobs:
           tag_name: v${{ steps.changelog_info.outputs.version }}
           name: ${{ steps.changelog_info.outputs.title }}
           body: ${{ steps.changelog.outputs.release_notes }}
-          files: |
-            Satset-v${{ steps.changelog_info.outputs.version }}.rbxm
+          files: Satset-v${{ steps.changelog_info.outputs.version }}.rbxm
+          fail_on_unmatched_files: true
           draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
