@@ -27,7 +27,7 @@ jobs:
           pretty_date=$(date -d "$raw_date" +"%B %e, %Y")
           
           echo "version=$version" >> $GITHUB_OUTPUT
-          echo "title=Release v$version" >> $GITHUB_OUTPUT
+          echo "title=v$version" >> $GITHUB_OUTPUT
           echo "pretty_date=$pretty_date" >> $GITHUB_OUTPUT
 
       - name: Extract changelog for this version
@@ -49,7 +49,7 @@ jobs:
           ' CHANGELOG.md > /tmp/release_notes.txt
           {
             echo 'release_notes<<EOF'
-            echo "### Release ${{ steps.changelog_info.outputs.version }} — ${{ steps.changelog_info.outputs.pretty_date }}"
+            echo "### Release v${{ steps.changelog_info.outputs.version }} — ${{ steps.changelog_info.outputs.pretty_date }}"
             echo ""
             cat /tmp/release_notes.txt
             echo 'EOF'
