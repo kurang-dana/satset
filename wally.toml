@@ -7,15 +7,24 @@ authors = ["Iqbal F"]
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 exclude = [
+	"**/*.rbxl",
+	"**/*.rbxlx",
+	"**/*.rbxm",
 	".gitattributes",
 	".gitignore",
+	".github",
+	"references",
+	"benchmark",
+	"docs",
+	"tests",
 	"default.project.json",
+	"build.project.json",
 	"package.json",
 	"stylua.toml",
 	"selene.toml",
-	"benchmark/",
-	"docs/",
-	"tests/",
+	"rokit.toml",
+	"wally.lock",
+	"CONTRIBUTING.md",
 ]
 
 [dev-dependencies]
