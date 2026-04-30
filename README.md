@@ -24,6 +24,7 @@ Satset is designed for high-throughput scenarios. We maintain a [benchmark suite
 - **[ByteNet](https://github.com/ffrostfall/ByteNet)**: A buffer-based serialization library.
 - **[BridgeNet2](https://github.com/ffrostfall/BridgeNet2)**: A high-level batching library.
 - **[Warp](https://github.com/imezx/Warp)**: A rapidly-fast networking library.
+- **[Packet](https://devforum.roblox.com/t/packet-networking-library/3573907/414)**: A binary-heavy packet library with built-in rate limiting.
 
 Detailed methodology and raw data can be found in the [Benchmarks Report](benchmark/Benchmarks.md).
 
