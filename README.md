@@ -194,6 +194,6 @@ end)
 
 # License
 
-Satset is distributed under the terms of the [MIT License](https://github.com/protheeuz/satset/blob/main/LICENSE).
+Satset is distributed under the terms of the [MIT License](LICENSE).
 
 When Satset is integrated into external projects, we ask that you honor the license agreement and include Satset attribution into the user-facing product documentation.
