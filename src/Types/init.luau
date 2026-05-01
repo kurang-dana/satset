@@ -1,3 +1,5 @@
+--!native
+--!optimize 2
 -- This file is part of the Satset networking library and is licensed under MIT License; see LICENSE.txt for details
 -- Types — defines all primitive and composite networking types.
 
@@ -26,7 +28,9 @@ local round = math.round
 local sqrt = math.sqrt
 local abs = math.abs
 local max = math.max
+local min = math.min
 local huge = math.huge
+local floor = math.floor
 
 -- [ Types ]
 
@@ -51,10 +55,7 @@ end
 -- Clamps NaN and ±Infinity to 0. Prevents malicious clients from
 -- injecting poisoned floats that propagate through server arithmetic.
 local function sanitizeFloat(v: number): number
-	if v ~= v or v == huge or v == -huge then
-		return 0
-	end
-	return v
+	return if v == v and v ~= huge and v ~= -huge then v else 0
 end
 
 -- [ Primitives ]
@@ -201,16 +202,20 @@ Types.string16 = {
 
 Types.Vector3 = {
 	read = function(b: buffer, cursor: number)
+		local x = readf32(b, cursor)
+		local y = readf32(b, cursor + 4)
+		local z = readf32(b, cursor + 8)
 		return Vector3.new(
-			sanitizeFloat(readf32(b, cursor)),
-			sanitizeFloat(readf32(b, cursor + 4)),
-			sanitizeFloat(readf32(b, cursor + 8))
+			if x == x and x ~= huge and x ~= -huge then x else 0,
+			if y == y and y ~= huge and y ~= -huge then y else 0,
+			if z == z and z ~= huge and z ~= -huge then z else 0
 		)
 	end,
 	write = function(b: buffer, cursor: number, value: Vector3)
-		writef32(b, cursor, sanitizeFloat(value.X))
-		writef32(b, cursor + 4, sanitizeFloat(value.Y))
-		writef32(b, cursor + 8, sanitizeFloat(value.Z))
+		local x, y, z = value.X, value.Y, value.Z
+		writef32(b, cursor, if x == x and x ~= huge and x ~= -huge then x else 0)
+		writef32(b, cursor + 4, if y == y and y ~= huge and y ~= -huge then y else 0)
+		writef32(b, cursor + 8, if z == z and z ~= huge and z ~= -huge then z else 0)
 	end,
 	size = 12,
 	getSize = fixedSize(12),
@@ -462,15 +467,258 @@ function Types.optional(innerType: Type<any>): Type<any>
 end
 
 function Types.array(elementType: Type<any>): Type<{ any }>
+	-- [ Fast-Path Unrolling for Common Primitives ]
+	-- Eliminates thousands of per-element function call overheads by inlining buffer operations
+	if elementType == Types.Vector3 then
+		return {
+			read = function(b: buffer, cursor: number)
+				local bufLen = buffer.len(b)
+				local len = readu16(b, cursor)
+				-- Cap allocation: exploiter can't claim 65535 elements in a tiny buffer.
+				local maxPossible = floor((bufLen - cursor - 2) / 12)
+				len = min(len, max(maxPossible, 0))
+				local arr, pos = table.create(len), cursor + 2
+				for i = 1, len do
+					local x = readf32(b, pos)
+					local y = readf32(b, pos + 4)
+					local z = readf32(b, pos + 8)
+					arr[i] = Vector3.new(
+						if x == x and x ~= huge and x ~= -huge then x else 0,
+						if y == y and y ~= huge and y ~= -huge then y else 0,
+						if z == z and z ~= huge and z ~= -huge then z else 0
+					)
+					pos += 12
+				end
+				return arr
+			end,
+			write = function(b: buffer, cursor: number, value: { any })
+				local len = #value
+				writeu16(b, cursor, len)
+				local pos = cursor + 2
+				for i = 1, len do
+					local val = value[i]
+					local x, y, z = val.X, val.Y, val.Z
+					writef32(b, pos, if x == x and x ~= huge and x ~= -huge then x else 0)
+					writef32(b, pos + 4, if y == y and y ~= huge and y ~= -huge then y else 0)
+					writef32(b, pos + 8, if z == z and z ~= huge and z ~= -huge then z else 0)
+					pos += 12
+				end
+			end,
+			size = 2,
+			getSize = function(value: { any })
+				return 2 + (#value * 12)
+			end,
+			isFixed = false,
+		}
+	elseif elementType == Types.bool then
+		return {
+			read = function(b: buffer, cursor: number)
+				local bufLen = buffer.len(b)
+				local len = readu16(b, cursor)
+				local maxPossible = bufLen - cursor - 2
+				len = min(len, max(maxPossible, 0))
+				local arr, pos = table.create(len), cursor + 2
+				for i = 1, len do
+					arr[i] = readu8(b, pos) ~= 0
+					pos += 1
+				end
+				return arr
+			end,
+			write = function(b: buffer, cursor: number, value: { any })
+				local len = #value
+				writeu16(b, cursor, len)
+				local pos = cursor + 2
+				for i = 1, len do
+					writeu8(b, pos, value[i] and 1 or 0)
+					pos += 1
+				end
+			end,
+			size = 2,
+			getSize = function(value: { any })
+				return 2 + #value
+			end,
+			isFixed = false,
+		}
+	elseif elementType == Types.string8 then
+		return {
+			read = function(b: buffer, cursor: number)
+				local bufLen = buffer.len(b)
+				local len = readu16(b, cursor)
+				local maxPossible = bufLen - cursor - 2
+				len = min(len, max(maxPossible, 0))
+				local arr, pos = table.create(len), cursor + 2
+				for i = 1, len do
+					local strLen = readu8(b, pos)
+					arr[i] = readstring(b, pos + 1, strLen)
+					pos += 1 + strLen
+				end
+				return arr
+			end,
+			write = function(b: buffer, cursor: number, value: { any })
+				local len = #value
+				writeu16(b, cursor, len)
+				local pos = cursor + 2
+				for i = 1, len do
+					local str = value[i]
+					local strLen = #str
+					writeu8(b, pos, strLen)
+					writestring(b, pos + 1, str, strLen)
+					pos += 1 + strLen
+				end
+			end,
+			size = 2,
+			getSize = function(value: { any })
+				local total = 2
+				for i = 1, #value do
+					total += 1 + #value[i]
+				end
+				return total
+			end,
+			isFixed = false,
+		}
+	elseif elementType == Types.string16 then
+		return {
+			read = function(b: buffer, cursor: number)
+				local bufLen = buffer.len(b)
+				local len = readu16(b, cursor)
+				local maxPossible = bufLen - cursor - 2
+				len = min(len, max(maxPossible, 0))
+				local arr, pos = table.create(len), cursor + 2
+				for i = 1, len do
+					local strLen = readu16(b, pos)
+					arr[i] = readstring(b, pos + 2, strLen)
+					pos += 2 + strLen
+				end
+				return arr
+			end,
+			write = function(b: buffer, cursor: number, value: { any })
+				local len = #value
+				writeu16(b, cursor, len)
+				local pos = cursor + 2
+				for i = 1, len do
+					local str = value[i]
+					local strLen = #str
+					writeu16(b, pos, strLen)
+					writestring(b, pos + 2, str, strLen)
+					pos += 2 + strLen
+				end
+			end,
+			size = 2,
+			getSize = function(value: { any })
+				local total = 2
+				for i = 1, #value do
+					total += 2 + #value[i]
+				end
+				return total
+			end,
+			isFixed = false,
+		}
+	elseif elementType == Types.u8 then
+		return {
+			read = function(b: buffer, cursor: number)
+				local bufLen = buffer.len(b)
+				local len = readu16(b, cursor)
+				local maxPossible = bufLen - cursor - 2
+				len = min(len, max(maxPossible, 0))
+				local arr, pos = table.create(len), cursor + 2
+				for i = 1, len do
+					arr[i] = readu8(b, pos)
+					pos += 1
+				end
+				return arr
+			end,
+			write = function(b: buffer, cursor: number, value: { any })
+				local len = #value
+				writeu16(b, cursor, len)
+				local pos = cursor + 2
+				for i = 1, len do
+					writeu8(b, pos, value[i])
+					pos += 1
+				end
+			end,
+			size = 2,
+			getSize = function(value: { any })
+				return 2 + #value
+			end,
+			isFixed = false,
+		}
+	elseif elementType == Types.f32 then
+		return {
+			read = function(b: buffer, cursor: number)
+				local bufLen = buffer.len(b)
+				local len = readu16(b, cursor)
+				local maxPossible = floor((bufLen - cursor - 2) / 4)
+				len = min(len, max(maxPossible, 0))
+				local arr, pos = table.create(len), cursor + 2
+				for i = 1, len do
+					arr[i] = sanitizeFloat(readf32(b, pos))
+					pos += 4
+				end
+				return arr
+			end,
+			write = function(b: buffer, cursor: number, value: { any })
+				local len = #value
+				writeu16(b, cursor, len)
+				local pos = cursor + 2
+				for i = 1, len do
+					writef32(b, pos, sanitizeFloat(value[i]))
+					pos += 4
+				end
+			end,
+			size = 2,
+			getSize = function(value: { any })
+				return 2 + (#value * 4)
+			end,
+			isFixed = false,
+		}
+	end
+
+	-- [ Standard Path: Fixed-Size Element Types ]
+	-- Pre-capture step size to avoid per-element getSize() calls and conditional branches.
+	if elementType.isFixed then
+		local step = elementType.size
+		local elemRead = elementType.read
+		local elemWrite = elementType.write
+		return {
+			read = function(b: buffer, cursor: number)
+				local bufLen = buffer.len(b)
+				local len = readu16(b, cursor)
+				local maxPossible = floor((bufLen - cursor - 2) / step)
+				len = min(len, max(maxPossible, 0))
+				local arr, pos = table.create(len), cursor + 2
+				for i = 1, len do
+					arr[i] = elemRead(b, pos)
+					pos += step
+				end
+				return arr
+			end,
+			write = function(b: buffer, cursor: number, value: { any })
+				local len = #value
+				writeu16(b, cursor, len)
+				local pos = cursor + 2
+				for i = 1, len do
+					elemWrite(b, pos, value[i])
+					pos += step
+				end
+			end,
+			size = 2,
+			getSize = function(value: { any })
+				return 2 + (#value * step)
+			end,
+			isFixed = false,
+		}
+	end
+
+	-- [ Standard Path: Variable-Size Element Types ]
 	return {
 		read = function(b: buffer, cursor: number)
 			local bufLen = buffer.len(b)
 			local len = readu16(b, cursor)
+			local maxPossible = bufLen - cursor - 2
+			len = min(len, max(maxPossible, 0))
 			local arr, pos = table.create(len), cursor + 2
+
 			for i = 1, len do
-				if pos + elementType.size > bufLen then
-					break
-				end
 				local val = elementType.read(b, pos)
 				arr[i] = val
 				pos += elementType.getSize(val)
@@ -481,6 +729,7 @@ function Types.array(elementType: Type<any>): Type<{ any }>
 			local len = #value
 			writeu16(b, cursor, len)
 			local pos = cursor + 2
+
 			for i = 1, len do
 				local val = value[i]
 				elementType.write(b, pos, val)
@@ -504,18 +753,19 @@ function Types.map(keyType: Type<any>, valueType: Type<any>): Type<{ [any]: any 
 		read = function(b: buffer, cursor: number)
 			local bufLen = buffer.len(b)
 			local count = readu16(b, cursor)
+			-- Cap iteration count: can't have more entries than remaining bytes.
+			local maxPossible = bufLen - cursor - 2
+			count = min(count, max(maxPossible, 0))
 			local result, pos = {}, cursor + 2
+			local kFixed, vFixed = keyType.isFixed, valueType.isFixed
+			local kStep, vStep = keyType.size, valueType.size
+
 			for _ = 1, count do
-				if pos + keyType.size > bufLen then
-					break
-				end
 				local key = keyType.read(b, pos)
-				pos += keyType.getSize(key)
-				if pos + valueType.size > bufLen then
-					break
-				end
+				pos += kFixed and kStep or keyType.getSize(key)
+
 				local val = valueType.read(b, pos)
-				pos += valueType.getSize(val)
+				pos += vFixed and vStep or valueType.getSize(val)
 				result[key] = val
 			end
 			return result
@@ -532,17 +782,28 @@ function Types.map(keyType: Type<any>, valueType: Type<any>): Type<{ [any]: any 
 
 			writeu16(b, cursor, n)
 			local pos = cursor + 2
+			local kFixed, vFixed = keyType.isFixed, valueType.isFixed
+			local kStep, vStep = keyType.size, valueType.size
+
 			for i = 1, n do
 				local k = keys[i]
 				local v = value[k]
 				keyType.write(b, pos, k)
-				pos += keyType.getSize(k)
+				pos += kFixed and kStep or keyType.getSize(k)
 				valueType.write(b, pos, v)
-				pos += valueType.getSize(v)
+				pos += vFixed and vStep or valueType.getSize(v)
 			end
 		end,
 		size = 2,
 		getSize = function(value: { [any]: any })
+			if keyType.isFixed and valueType.isFixed then
+				local count = 0
+				for _ in value do
+					count += 1
+				end
+				return 2 + (count * (keyType.size + valueType.size))
+			end
+
 			local total = 2
 			for k, v in value do
 				total += keyType.getSize(k) + valueType.getSize(v)

@@ -1,12 +1,19 @@
 -- This file is part of the Satset networking library and is licensed under MIT License; see LICENSE.txt for details
 -- Guard — server-side token bucket rate limiter for DDoS protection.
 
+local RunService = game:GetService("RunService")
+
+-- [ Constants ]
+
+local IS_STUDIO = RunService:IsStudio()
+
 -- [ Types ]
 
 export type GuardConfig = {
 	maxTokens: number, -- Max burst capacity (how many packets can be sent at once)
 	refillRate: number, -- Tokens refilled per second
 	onFlood: ((player: Player) -> ())?, -- Optional callback for when a player is flooding
+	studioBypass: boolean?, -- If true, rate limiting is disabled in Studio (Default: true)
 }
 
 type PlayerBucket = {
@@ -28,9 +35,10 @@ export type Guard = {
 -- [ Private Constants ]
 
 local DEFAULT_CONFIG: GuardConfig = {
-	maxTokens = 60,
-	refillRate = 30,
+	maxTokens = 1000,
+	refillRate = 500,
 	onFlood = nil,
+	studioBypass = true,
 }
 
 -- [ Public API ]
@@ -49,9 +57,10 @@ function Guard.new(config: GuardConfig?): Guard
 	local self = setmetatable({}, Guard)
 
 	local cfg = config or DEFAULT_CONFIG
-	self._maxTokens = cfg.maxTokens or DEFAULT_CONFIG.maxTokens
-	self._refillRate = cfg.refillRate or DEFAULT_CONFIG.refillRate
+	self._maxTokens = math.max(cfg.maxTokens or DEFAULT_CONFIG.maxTokens, 1)
+	self._refillRate = math.max(cfg.refillRate or DEFAULT_CONFIG.refillRate, 1)
 	self._onFlood = cfg.onFlood
+	self._studioBypass = if cfg.studioBypass ~= nil then cfg.studioBypass else DEFAULT_CONFIG.studioBypass
 	self._buckets = {} :: { [Player]: PlayerBucket }
 
 	return (self :: any) :: Guard
@@ -64,6 +73,11 @@ end
 	the player is flooding.
 ]]
 function Guard:consume(player: Player): boolean
+	-- Bypass rate limiting in Studio if enabled.
+	if IS_STUDIO and self._studioBypass then
+		return true
+	end
+
 	local bucket: PlayerBucket = self:_getBucket(player)
 	local now = os.clock()
 	local elapsed = now - bucket.lastRefill

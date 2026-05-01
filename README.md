@@ -24,6 +24,7 @@ Satset is designed for high-throughput scenarios. We maintain a [benchmark suite
 - **[ByteNet](https://github.com/ffrostfall/ByteNet)**: A buffer-based serialization library.
 - **[BridgeNet2](https://github.com/ffrostfall/BridgeNet2)**: A high-level batching library.
 - **[Warp](https://github.com/imezx/Warp)**: A rapidly-fast networking library.
+- **[Packet](https://devforum.roblox.com/t/packet-networking-library/3573907/414)**: A binary-heavy packet library with built-in rate limiting.
 
 Detailed methodology and raw data can be found in the [Benchmarks Report](benchmark/Benchmarks.md).
 
@@ -138,7 +139,8 @@ local Satset = require(path.to.Satset)
 Satset.start({
     guard = {
         maxTokens = 60,
-        refillRate = 30
+        refillRate = 30,
+        studioBypass = true -- Enabled by default
     }
 })
 ```
@@ -193,6 +195,6 @@ end)
 
 # License
 
-Satset is distributed under the terms of the [MIT License](https://github.com/protheeuz/satset/blob/main/LICENSE).
+Satset is distributed under the terms of the [MIT License](LICENSE).
 
 When Satset is integrated into external projects, we ask that you honor the license agreement and include Satset attribution into the user-facing product documentation.
