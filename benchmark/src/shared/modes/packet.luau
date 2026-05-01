@@ -5,14 +5,18 @@ local Packet = require(game:GetService("ReplicatedStorage").SuphiPacket)
 
 local function wrap(pkt)
 	return {
-		fire = function(data) pkt:Fire(data) end,
-		Fire = function(data) pkt:Fire(data) end,
+		fire = function(data)
+			pkt:Fire(data)
+		end,
+		Fire = function(data)
+			pkt:Fire(data)
+		end,
 		OnServerEvent = pkt.OnServerEvent,
 	}
 end
 
 return {
-	Booleans = wrap(Packet("Booleans", {Packet.Boolean8})),
+	Booleans = wrap(Packet("Booleans", { Packet.Boolean8 })),
 	Entities = wrap(Packet("Entities", {
 		{
 			id = Packet.NumberU8,
@@ -21,10 +25,10 @@ return {
 			z = Packet.NumberU8,
 			orientation = Packet.NumberU8,
 			animation = Packet.NumberU8,
-		}
+		},
 	})),
-	Vectors = wrap(Packet("Vectors", {Packet.Vector3F32})),
-	Strings = wrap(Packet("Strings", {Packet.String})),
+	Vectors = wrap(Packet("Vectors", { Packet.Vector3F32 })),
+	Strings = wrap(Packet("Strings", { Packet.String })),
 	Mixed = wrap(Packet("Mixed", {
 		id = Packet.NumberU8,
 		health = Packet.NumberU8,

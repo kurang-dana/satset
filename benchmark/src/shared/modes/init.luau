@@ -4,7 +4,7 @@ local DISABLED_MODES = {}
 
 local Modes = {}
 for _, Mode in script:GetChildren() do
-	if DISABLED_MODES[Mode.Name] then
+	if DISABLED_MODES[Mode.Name] or not Mode:IsA("ModuleScript") then
 		continue
 	end
 	Modes[Mode.Name] = require(Mode)

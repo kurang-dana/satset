@@ -149,6 +149,21 @@ local function runAll()
 		results[bench] = {}
 
 		for tool in Modes do
+			-- Red batches events into nested arrays. At 1000 events/frame, this causes the
+			-- Roblox Replicator queue to exceed its 5,000,000 Variant hard limit, crashing the client.
+			if
+				tool == "red" and (bench == "Booleans" or bench == "Strings" or bench == "Entities" or bench == "Mixed")
+			then
+				warn("> Skipping " .. tool .. " for " .. bench .. " due to Variant limit crash.")
+				results[bench][tool] = {
+					Sent = 0,
+					Recieve = 0,
+					Bandwidth = { 0, 0, 0, 0, 0, 0 },
+					Framerate = { 0, 0, 0, 0, 0, 0 },
+				}
+				continue
+			end
+
 			print("> Running with " .. tool)
 			results[bench][tool] = runBenchmark(tool, bench)
 			waitForDrain()

@@ -35,7 +35,10 @@
 				}
 			},
 			"SuphiPacket": {
-				"$path": "../references/Suphi-Packet/Packet"
+				"$path": "../references/5uphi-Packet/Packet"
+			},
+			"Red": {
+				"$path": "../references/Red/lib"
 			}
 		}
 	}

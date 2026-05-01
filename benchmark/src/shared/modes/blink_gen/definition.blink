@@ -1,0 +1,66 @@
+option Casing = Pascal
+option TypesOutput = "./types.luau"
+option ClientOutput = "./client.luau"
+option ServerOutput = "./server.luau"
+
+struct Entity {
+    id: u8,
+    x: u8,
+    y: u8,
+    z: u8,
+    orientation: u8,
+    animation: u8
+}
+
+struct MixedStruct {
+    id: u8,
+    health: u8,
+    position: vector,
+    velocity: vector,
+    name: string,
+    isRunning: boolean,
+    animation: u8,
+    team: u8
+}
+
+event Booleans {
+    From: Client,
+    Type: Reliable,
+    Call: SingleSync,
+    Data: boolean[]
+}
+
+event Entities {
+    From: Client,
+    Type: Reliable,
+    Call: SingleSync,
+    Data: Entity[]
+}
+
+event Vectors {
+    From: Client,
+    Type: Reliable,
+    Call: SingleSync,
+    Data: vector[]
+}
+
+event Strings {
+    From: Client,
+    Type: Reliable,
+    Call: SingleSync,
+    Data: string[]
+}
+
+event Mixed {
+    From: Client,
+    Type: Reliable,
+    Call: SingleSync,
+    Data: MixedStruct
+}
+
+event SingleValue {
+    From: Client,
+    Type: Reliable,
+    Call: SingleSync,
+    Data: u8
+}
