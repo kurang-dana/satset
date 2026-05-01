@@ -1,3 +1,5 @@
+--!native
+--!optimize 2
 -- This file is part of the Satset networking library and is licensed under MIT License; see LICENSE.txt for details
 -- Batcher — handles per-frame packet batching and unreliable transport hardening.
 
@@ -11,184 +13,155 @@ local IS_SERVER = RunService:IsServer()
 
 -- UnreliableRemoteEvent has a limit around 1000 bytes.
 -- We cap at 900 to stay safe.
-local UNRELIABLE_MTU = 900
+local RELIABLE_SPLIT_THRESHOLD = 45000
+local UNRELIABLE_SPLIT_THRESHOLD = 900
+local INITIAL_WORKING_SIZE = 65536
 
--- [ Types ]
+type Stream = {
+	b: buffer,
+	cursor: number,
+	count: number,
+}
 
-type QueueEntry = { id: number, payload: buffer }
+local serverReliableStream: Stream = { b = buffer.create(INITIAL_WORKING_SIZE), cursor = 2, count = 0 }
+local serverUnreliableStream: Stream = { b = buffer.create(INITIAL_WORKING_SIZE), cursor = 4, count = 0 }
+local serverReliableBatches: { buffer } = {}
+local serverUnreliableBatches: { buffer } = {}
 
--- [ State ]
+local clientReliableStreams: { [Player]: Stream } = {}
+local clientUnreliableStreams: { [Player]: Stream } = {}
+local clientReliableBatches: { [Player]: { buffer } } = {}
+local clientUnreliableBatches: { [Player]: { buffer } } = {}
 
--- We use separate queues for reliable and unreliable to respect transport semantics.
-local serverReliable: { [Player]: { QueueEntry } } = {}
-local serverUnreliable: { [Player]: { QueueEntry } } = {}
-local broadcastReliable: { QueueEntry } = {}
+local broadcastReliableStream: Stream = { b = buffer.create(INITIAL_WORKING_SIZE), cursor = 2, count = 0 }
+local broadcastReliableBatches: { buffer } = {}
 
-local clientReliable: { QueueEntry } = {}
-local clientUnreliable: { QueueEntry } = {}
-
--- Monotonic sequence counters to prevent out-of-order execution on unreliable channels.
 local serverSeqCounters: { [Player]: number } = {}
 local clientSeqCounter: number = 0
 
--- Tracking the last received sequence to discard stale packets.
 local lastReceivedSeq: { [Player]: number } = {}
 local lastServerSeq: number = 0
 
+local packetFixedSizes: { [number]: number } = {}
+
 local Batcher = {}
 
--- [ Private Logic ]
-
---[[
-	Encodes a list of packets into a single reliable batch buffer.
-	
-	Wire format:
-	[u8 packetCount]
-	...[u8 id][u16 size][payload]
-]]
-local function encodeBatch(queue: { QueueEntry }): buffer?
-	local count = #queue
-	if count == 0 then
-		return nil
-	end
-
-	local totalSize = 1
-	for _, entry in queue do
-		totalSize += 1 + 2 + buffer.len(entry.payload)
-	end
-
-	local b = buffer.create(totalSize)
-	local cursor = 0
-
-	buffer.writeu8(b, cursor, count)
-	cursor += 1
-
-	for _, entry in queue do
-		local payloadLen = buffer.len(entry.payload)
-		buffer.writeu8(b, cursor, entry.id)
-		cursor += 1
-		buffer.writeu16(b, cursor, payloadLen)
-		cursor += 2
-		buffer.copy(b, cursor, entry.payload, 0, payloadLen)
-		cursor += payloadLen
-	end
-
-	return b
+function Batcher.registerFixedSize(id: number, size: number)
+	packetFixedSizes[id] = size
 end
 
---[[
-	Encodes packets into one or more unreliable batches, ensuring MTU safety.
-	Each batch gets its own sequence number.
-	
-	Wire format:
-	[u16 sequenceNumber][u8 packetCount]
-	...[u8 id][u16 size][payload]
-]]
-local function encodeUnreliableBatches(queue: { QueueEntry }, seqCounter: number): ({ buffer }, number)
-	if #queue == 0 then
-		return {}, seqCounter
+local function commitStream(stream: Stream, reliable: boolean, seqCounter: number?): (buffer?, number?)
+	if stream.count == 0 then
+		return nil, seqCounter
 	end
 
-	local batches: { buffer } = {}
-	local currentEntries: { QueueEntry } = {}
-	local currentSize = 3
-
-	for _, entry in queue do
-		local entrySize = 1 + 2 + buffer.len(entry.payload)
-
-		-- If this packet would push us over the limit, we flush the current sub-batch.
-		if currentSize + entrySize > UNRELIABLE_MTU and #currentEntries > 0 then
-			seqCounter = (seqCounter + 1) % 65536
-			local b = buffer.create(currentSize)
-			local cursor = 0
-
-			buffer.writeu16(b, cursor, seqCounter)
-			cursor += 2
-			buffer.writeu8(b, cursor, #currentEntries)
-			cursor += 1
-
-			for _, e in currentEntries do
-				local pLen = buffer.len(e.payload)
-				buffer.writeu8(b, cursor, e.id)
-				cursor += 1
-				buffer.writeu16(b, cursor, pLen)
-				cursor += 2
-				buffer.copy(b, cursor, e.payload, 0, pLen)
-				cursor += pLen
-			end
-
-			table.insert(batches, b)
-			table.clear(currentEntries)
-			currentSize = 3
-		end
-
-		table.insert(currentEntries, entry)
-		currentSize += entrySize
+	local nextSeq = seqCounter
+	if reliable then
+		buffer.writeu16(stream.b, 0, stream.count)
+	else
+		local val = ((seqCounter or 0) + 1) % 65536
+		buffer.writeu16(stream.b, 0, val)
+		buffer.writeu16(stream.b, 2, stream.count)
+		nextSeq = val
 	end
 
-	-- Flush any remaining packets.
-	if #currentEntries > 0 then
-		seqCounter = (seqCounter + 1) % 65536
-		local b = buffer.create(currentSize)
-		local cursor = 0
+	-- Always create an exact-sized buffer for sending. Roblox RemoteEvent
+	-- transmits the entire buffer object, so we must right-size it.
+	local exactBuffer = buffer.create(stream.cursor)
+	buffer.copy(exactBuffer, 0, stream.b, 0, stream.cursor)
 
-		buffer.writeu16(b, cursor, seqCounter)
-		cursor += 2
-		buffer.writeu8(b, cursor, #currentEntries)
-		cursor += 1
+	-- Reset stream for next frame. Reuse the existing working buffer
+	-- to avoid re-allocation when the load is stable across frames.
+	stream.count = 0
+	stream.cursor = reliable and 2 or 4
 
-		for _, e in currentEntries do
-			local pLen = buffer.len(e.payload)
-			buffer.writeu8(b, cursor, e.id)
-			cursor += 1
-			buffer.writeu16(b, cursor, pLen)
-			cursor += 2
-			buffer.copy(b, cursor, e.payload, 0, pLen)
-			cursor += pLen
-		end
-
-		table.insert(batches, b)
-	end
-
-	return batches, seqCounter
+	return exactBuffer, nextSeq
 end
+
+local function allocateInStream(
+	stream: Stream,
+	packetId: number,
+	size: number,
+	splitThreshold: number,
+	reliable: boolean,
+	seqCounter: number?,
+	queueTo: { buffer }
+): (buffer, number, number?)
+	local isFixed = packetFixedSizes[packetId] ~= nil
+	local entrySize = 1 + (isFixed and 0 or 2) + size
+
+	if stream.cursor + entrySize > splitThreshold and stream.count > 0 then
+		local exactBuffer, newSeq = commitStream(stream, reliable, seqCounter)
+		if exactBuffer then
+			table.insert(queueTo, exactBuffer)
+		end
+		if newSeq then
+			seqCounter = newSeq
+		end
+	end
+
+	if stream.cursor + entrySize > buffer.len(stream.b) then
+		local newB = buffer.create(math.max(buffer.len(stream.b) * 2, stream.cursor + entrySize))
+		buffer.copy(newB, 0, stream.b, 0, stream.cursor)
+		stream.b = newB
+	end
+
+	local offset = stream.cursor
+	buffer.writeu8(stream.b, offset, packetId)
+
+	if not isFixed then
+		buffer.writeu16(stream.b, offset + 1, size)
+		offset += 2
+	end
+
+	stream.cursor += entrySize
+	stream.count += 1
+
+	return stream.b, offset + 1, seqCounter
+end
+type QueueEntry = { id: number, b: buffer, offset: number, len: number }
 
 -- [ Internal API ]
 
 --[[
-	Splits a reliable batch back into individual packets.
+	Splits a reliable batch back into individual packets without allocating new buffers.
 ]]
 function Batcher.decodeBatch(b: buffer): { QueueEntry }
 	local results = {}
 	local cursor = 0
 	local bufLen = buffer.len(b)
 
-	if bufLen < 1 then
+	if bufLen < 2 then
 		return results
 	end
 
-	local count = buffer.readu8(b, cursor)
-	cursor += 1
+	local count = buffer.readu16(b, cursor)
+	cursor += 2
+	-- print(`[Satset Debug] Batch size: {count}`)
 
 	for _ = 1, count do
-		if cursor + 3 > bufLen then
+		if cursor + 1 > bufLen then
 			break
 		end
 
 		local id = buffer.readu8(b, cursor)
 		cursor += 1
-		local payloadLen = buffer.readu16(b, cursor)
-		cursor += 2
+
+		local payloadLen = packetFixedSizes[id]
+		if not payloadLen then
+			if cursor + 2 > bufLen then
+				break
+			end
+			payloadLen = buffer.readu16(b, cursor)
+			cursor += 2
+		end
 
 		if cursor + payloadLen > bufLen then
 			break
 		end
 
-		local payload = buffer.create(payloadLen)
-		buffer.copy(payload, 0, b, cursor, payloadLen)
+		table.insert(results, { id = id, b = b, offset = cursor, len = payloadLen })
 		cursor += payloadLen
-
-		table.insert(results, { id = id, payload = payload })
 	end
 
 	return results
@@ -200,7 +173,7 @@ end
 ]]
 function Batcher.decodeUnreliableBatch(b: buffer, sender: Player?): { QueueEntry }?
 	local bufLen = buffer.len(b)
-	if bufLen < 3 then
+	if bufLen < 4 then
 		return nil
 	end
 
@@ -228,28 +201,32 @@ function Batcher.decodeUnreliableBatch(b: buffer, sender: Player?): { QueueEntry
 	local results = {}
 	local cursor = 2
 
-	local count = buffer.readu8(b, cursor)
-	cursor += 1
+	local count = buffer.readu16(b, cursor)
+	cursor += 2
 
 	for _ = 1, count do
-		if cursor + 3 > bufLen then
+		if cursor + 1 > bufLen then
 			break
 		end
 
 		local id = buffer.readu8(b, cursor)
 		cursor += 1
-		local payloadLen = buffer.readu16(b, cursor)
-		cursor += 2
+
+		local payloadLen = packetFixedSizes[id]
+		if not payloadLen then
+			if cursor + 2 > bufLen then
+				break
+			end
+			payloadLen = buffer.readu16(b, cursor)
+			cursor += 2
+		end
 
 		if cursor + payloadLen > bufLen then
 			break
 		end
 
-		local payload = buffer.create(payloadLen)
-		buffer.copy(payload, 0, b, cursor, payloadLen)
+		table.insert(results, { id = id, b = b, offset = cursor, len = payloadLen })
 		cursor += payloadLen
-
-		table.insert(results, { id = id, payload = payload })
 	end
 
 	return results
@@ -257,29 +234,78 @@ end
 
 -- [ Enqueue API ]
 
-function Batcher.enqueueForPlayer(player: Player, packetId: number, payload: buffer, reliable: boolean)
+function Batcher.allocateForPlayer(player: Player, packetId: number, size: number, reliable: boolean): (buffer, number)
 	if reliable then
-		if not serverReliable[player] then
-			serverReliable[player] = {}
+		local stream = clientReliableStreams[player]
+		if not stream then
+			stream = { b = buffer.create(INITIAL_WORKING_SIZE), cursor = 2, count = 0 }
+			clientReliableStreams[player] = stream
 		end
-		table.insert(serverReliable[player], { id = packetId, payload = payload })
+		local batches = clientReliableBatches[player]
+		if not batches then
+			batches = {}
+			clientReliableBatches[player] = batches
+		end
+
+		local b, offset = allocateInStream(stream, packetId, size, RELIABLE_SPLIT_THRESHOLD, true, nil, batches)
+		return b, offset
 	else
-		if not serverUnreliable[player] then
-			serverUnreliable[player] = {}
+		local stream = clientUnreliableStreams[player]
+		if not stream then
+			stream = { b = buffer.create(INITIAL_WORKING_SIZE), cursor = 4, count = 0 }
+			clientUnreliableStreams[player] = stream
 		end
-		table.insert(serverUnreliable[player], { id = packetId, payload = payload })
+		local batches = clientUnreliableBatches[player]
+		if not batches then
+			batches = {}
+			clientUnreliableBatches[player] = batches
+		end
+
+		local seq = serverSeqCounters[player] or 0
+		local b, offset, newSeq =
+			allocateInStream(stream, packetId, size, UNRELIABLE_SPLIT_THRESHOLD, false, seq, batches)
+		serverSeqCounters[player] = newSeq :: number
+		return b, offset
 	end
 end
 
-function Batcher.enqueueForAllPlayers(packetId: number, payload: buffer)
-	table.insert(broadcastReliable, { id = packetId, payload = payload })
+function Batcher.allocateForAllPlayers(packetId: number, size: number): (buffer, number)
+	local b, offset = allocateInStream(
+		broadcastReliableStream,
+		packetId,
+		size,
+		RELIABLE_SPLIT_THRESHOLD,
+		true,
+		nil,
+		broadcastReliableBatches
+	)
+	return b, offset
 end
 
-function Batcher.enqueueForServer(packetId: number, payload: buffer, reliable: boolean)
+function Batcher.allocateForServer(packetId: number, size: number, reliable: boolean): (buffer, number)
 	if reliable then
-		table.insert(clientReliable, { id = packetId, payload = payload })
+		local b, offset = allocateInStream(
+			serverReliableStream,
+			packetId,
+			size,
+			RELIABLE_SPLIT_THRESHOLD,
+			true,
+			nil,
+			serverReliableBatches
+		)
+		return b, offset
 	else
-		table.insert(clientUnreliable, { id = packetId, payload = payload })
+		local b, offset, newSeq = allocateInStream(
+			serverUnreliableStream,
+			packetId,
+			size,
+			UNRELIABLE_SPLIT_THRESHOLD,
+			false,
+			clientSeqCounter,
+			serverUnreliableBatches
+		)
+		clientSeqCounter = newSeq :: number
+		return b, offset
 	end
 end
 
@@ -290,55 +316,71 @@ local function flush()
 		local reliableRemote = Bridge.getReliable()
 		local unreliableRemote = Bridge.getUnreliable()
 
-		for player, queue in serverReliable do
-			if #queue > 0 then
-				local batch = encodeBatch(queue)
-				if batch then
+		for player, stream in clientReliableStreams do
+			local exact, _ = commitStream(stream, true)
+			local batches = clientReliableBatches[player]
+			if batches then
+				if exact then
+					table.insert(batches, exact)
+				end
+				for _, batch in batches do
 					reliableRemote:FireClient(player, batch)
 				end
-				table.clear(queue)
+				table.clear(batches)
+			elseif exact then
+				reliableRemote:FireClient(player, exact)
 			end
 		end
 
-		for player, queue in serverUnreliable do
-			if #queue > 0 then
-				local seq = serverSeqCounters[player] or 0
-				local batches, newSeq = encodeUnreliableBatches(queue, seq)
-				serverSeqCounters[player] = newSeq
+		for player, stream in clientUnreliableStreams do
+			local seq = serverSeqCounters[player] or 0
+			local exact, newSeq = commitStream(stream, false, seq)
+			serverSeqCounters[player] = newSeq :: number
 
+			local batches = clientUnreliableBatches[player]
+			if batches then
+				if exact then
+					table.insert(batches, exact)
+				end
 				for _, batch in batches do
 					unreliableRemote:FireClient(player, batch)
 				end
-
-				table.clear(queue)
+				table.clear(batches)
+			elseif exact then
+				unreliableRemote:FireClient(player, exact)
 			end
 		end
 
-		if #broadcastReliable > 0 then
-			local batch = encodeBatch(broadcastReliable)
-			if batch then
-				reliableRemote:FireAllClients(batch)
-			end
-			table.clear(broadcastReliable)
+		local exact, _ = commitStream(broadcastReliableStream, true)
+		if exact then
+			table.insert(broadcastReliableBatches, exact)
 		end
+		for _, batch in broadcastReliableBatches do
+			reliableRemote:FireAllClients(batch)
+		end
+		table.clear(broadcastReliableBatches)
 	else
-		if #clientReliable > 0 then
-			local batch = encodeBatch(clientReliable)
-			if batch then
+		local exactR, _ = commitStream(serverReliableStream, true)
+		if exactR then
+			table.insert(serverReliableBatches, exactR)
+		end
+		if #serverReliableBatches > 0 then
+			for _, batch in serverReliableBatches do
 				Bridge.getReliable():FireServer(batch)
 			end
-			table.clear(clientReliable)
+			table.clear(serverReliableBatches)
 		end
 
-		if #clientUnreliable > 0 then
-			local batches, newSeq = encodeUnreliableBatches(clientUnreliable, clientSeqCounter)
-			clientSeqCounter = newSeq
-
-			for _, batch in batches do
+		local exactU, newSeq = commitStream(serverUnreliableStream, false, clientSeqCounter)
+		clientSeqCounter = newSeq :: number
+		if exactU then
+			table.insert(serverUnreliableBatches, exactU)
+		end
+		if #serverUnreliableBatches > 0 then
+			for _, batch in serverUnreliableBatches do
 				Bridge.getUnreliable():FireServer(batch)
 			end
-
-			table.clear(clientUnreliable)
+			table.clear(serverUnreliableBatches)
 		end
 	end
 end
@@ -354,8 +396,10 @@ end
 	Purges a player's state when they disconnect.
 ]]
 function Batcher.removePlayer(player: Player)
-	serverReliable[player] = nil
-	serverUnreliable[player] = nil
+	clientReliableStreams[player] = nil
+	clientUnreliableStreams[player] = nil
+	clientReliableBatches[player] = nil
+	clientUnreliableBatches[player] = nil
 	serverSeqCounters[player] = nil
 	lastReceivedSeq[player] = nil
 end

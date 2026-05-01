@@ -1,3 +1,5 @@
+--!native
+--!optimize 2
 -- This file is part of the Satset networking library and is licensed under MIT License; see LICENSE.txt for details
 -- Serializer — handles the actual encoding and decoding of data into binary buffers.
 
@@ -49,6 +51,12 @@ function Serializer.encodeInto(
 	b: buffer,
 	offset: number
 ): number
+	-- Compiled encoder fast-path: bypasses the field loop entirely.
+	if compiled.encoder then
+		compiled.encoder(b, offset, data)
+		return compiled.fixedSize :: number
+	end
+
 	local cursor = offset
 	for _, field in compiled.fields do
 		local value = data[field.name]
@@ -70,13 +78,20 @@ function Serializer.decodeFrom(
 	offset: number
 ): ({ [string]: any }?, number)
 	local bufLen = buffer.len(b)
-	local data = {}
-	local cursor = offset
 
 	-- Bulk bounds check for fixed-size schemas.
 	if compiled.fixedSize and (offset + compiled.fixedSize) > bufLen then
 		return nil, 0
 	end
+
+	-- Compiled decoder fast-path: single bounds check, then direct read.
+	if compiled.decoder then
+		local data = compiled.decoder(b, offset)
+		return data, compiled.fixedSize :: number
+	end
+
+	local data = {}
+	local cursor = offset
 
 	for _, field in compiled.fields do
 		-- Pre-read bounds check.
