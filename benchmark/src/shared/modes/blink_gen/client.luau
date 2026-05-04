@@ -162,17 +162,6 @@ local Queue: any = {
 
 local SerdesEvent = "?"
 local SerdesThread: thread?
-export type Entity = { id: number, x: number, y: number, z: number, orientation: number, animation: number }
-export type MixedStruct = {
-	id: number,
-	health: number,
-	position: Vector3,
-	velocity: Vector3,
-	name: string,
-	isRunning: boolean,
-	animation: number,
-	team: number,
-}
 function SerdesFunctions.WriteEVENT_Booleans(Value: { boolean }): ()
 	-- Allocate BLOCK: 3 bytes
 	local BLOCK_START = Allocate(3)

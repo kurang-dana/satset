@@ -169,17 +169,6 @@ Queue.Reliable[2] = table.create(256)
 Queue.Reliable[3] = table.create(256)
 Queue.Reliable[4] = table.create(256)
 Queue.Reliable[5] = table.create(256)
-export type Entity = { id: number, x: number, y: number, z: number, orientation: number, animation: number }
-export type MixedStruct = {
-	id: number,
-	health: number,
-	position: Vector3,
-	velocity: Vector3,
-	name: string,
-	isRunning: boolean,
-	animation: number,
-	team: number,
-}
 function SerdesFunctions.ReadEVENT_Booleans(): { boolean }
 	-- Read BLOCK: 2 bytes
 	local BLOCK_START = Read(2)

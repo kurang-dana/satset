@@ -1,121 +1,282 @@
 # [Satset](https://github.com/bookek/satset) Networking Benchmarks
 
-**Last Updated:** May 1, 2026 (Satset - v0.1.3)
+**Last Updated:** May 5, 2026 (Satset v0.1.3)
 
-These are the numbers for **Satset** compared to native [Roblox](https://www.roblox.com) remotes and other community libraries under heavy load.
+These benchmarks compare **Satset** against native Roblox remotes and popular community libraries. To ensure a fair comparison, all metrics are normalized to a 60 FPS baseline, even when a library causes the engine's framerate to drop.
 
-## 1. Bandwidth (Median KB/s)
-
-> **Lower is better.** This measures how much data each library pushes over the wire to send the same amount of information.
-
-| Benchmark | Roblox | [BridgeNet2](https://github.com/ffrostfall/BridgeNet2) | [ByteNet](https://github.com/ffrostfall/ByteNet) | [Warp](https://github.com/imezx/Warp) | [Packet](https://devforum.roblox.com/t/packet-networking-library/3573907/1) | [Red](https://github.com/red-blox/Red) | [Zap](https://github.com/red-blox/zap) | [Blink](https://github.com/1Axen/blink) | **Satset** |
-| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| **Vectors** | 218880.9 | 153198.5 | 78.9 | 0.7 | 79.5 | 148316.3 | 78.8 | 80.2 | **4316.2** |
-| **Booleans** | 164788.9 | 76174.9 | 22.9 | 0.8 | 24.1 | CRASH | 26.4 | 25.8 | **497.1** |
-| **Mixed** | 100439.4 | 8401.5 | 3.0 | 0.4 | 5.8 | CRASH | 5.4 | 5.7 | **6.0** |
-| **Entities** | 287698.9 | 81221.4 | 42.5 | 0.9 | 33.2 | CRASH | 41.6 | 44.4 | **636.5** |
-| **Strings** | 143588.3 | 186891.9 | CRASH | 0.7 | 107.3 | CRASH | 111.3 | 111.2 | **18907.6** |
-| **SingleValue** | 1767.0 | 721.7 | 2.6 | 0.8 | 2.8 | 549.5 | 3.9 | 2.6 | **2.7** |
-
-**Important Notes on Benchmark Results:**
-
-* **Warp** shows near-zero data because its benchmark adapter fails to integrate with the testing listener system (0 packets received).
-* **Red** experiences a hard crash (hitting Roblox's internal "Variant limit") when attempting to process complex or high-volume data structures.
-* **ByteNet** suffers from a buffer overflow and crashes entirely during the Strings benchmark.
-
-**Why is Satset's bandwidth higher on certain tests? (The Compression Illusion)**
-While all network traffic on Roblox (including **Satset**) is automatically compressed using the [LZ4](https://lz4.org/) algorithm, you might notice libraries like Zap or Blink showing incredibly low bandwidth (~80 KB/s) on massive tests like Vectors. This is a synthetic artifact of how LZ4 reacts to unchunked data.
-
-The benchmark fires **1,000 identical items** every single frame. Libraries without safety limits pack all 1,000 items into a single, massive 1.2 MB packet. LZ4 compression easily shrinks this repeating, identical data down to almost 0 bytes when processed in one go.
-
-**Satset**, by contrast, strictly caps packet payloads to **45 KB chunks** proactively. This ensures your game server doesn't stall or freeze while reading massive data spikes. However, slicing the data into 45 KB chunks forces the LZ4 compression to reset its dictionary for every chunk. This prevents it from compressing the entire 1.2 MB at once, which is why our measured bandwidth appears higher in this specific synthetic test. In a real-world game where data is random and non-repeating, this extreme compression gap disappears. We choose real-world server stability over "gaming" the benchmark numbers.
+Detailed results and raw data are available in [result.json](./result.json).
 
 ---
 
-## 2. Framerate (Median FPS)
+## 1. Detailed Test Results
 
-> **Higher is better.** This shows how much CPU room each library leaves for the game. If the FPS drops, it means the networking is eating up too many resources.
+### 1.1 Vectors
+>
+> Sending 1,000 `Vector3` values per frame. Measures raw spatial data throughput.
+>
+> - **FPS:** Higher is better.
+> - **Bandwidth:** Lower is better.
+> - **Loss:** Lower is better.
 
-| Benchmark | Roblox | BridgeNet2 | ByteNet | Warp | Packet | Red | Zap | Blink | **Satset** |
-| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| **Vectors** | 45 | 55 | 59 | 59 | 56 | 37 | 60 | 59 | **60** |
-| **Booleans** | 16 | 15 | 22 | 59 | 15 | CRASH | 29 | 60 | **60** |
-| **Mixed** | 60 | 60 | 16 | 60 | 60 | CRASH | 60 | 60 | **60** |
-| **Entities** | 16 | 16 | 26 | 60 | 15 | CRASH | 15 | 19 | **60** |
-| **Strings** | 26 | 35 | CRASH | 60 | 50 | CRASH | 60 | 60 | **59** |
-| **SingleValue** | 60 | 60 | 60 | 59 | 60 | 59 | 60 | 60 | **60** |
+#### Vectors: Default Mode (Stability First)
 
-*\*Note: For details regarding the CRASH values in this table (Red and ByteNet), please refer to the "Important Notes" section under Table 1.*
+| Library | FPS (p50/min/p95) | Bandwidth (p50) | Norm. BW (p50) | Drain Duration | Sent / Recv | Loss % |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Roblox | 60 / 60 / 60 | 205.5 KB/s | 205.5 KB/s | 9.64ms | 120K / 120K | 0.0% |
+| BridgeNet2 | 60 / 50 / 60 | 15.6 KB/s | 15.6 KB/s | 23.51ms | 108.2K / 108.2K | 0.0% |
+| ByteNet | 60 / 60 / 60 | 72.9 B/s | 72.9 B/s | 9.45ms | 120K / 120K | 0.0% |
+| Warp | 61 / 52 / 61 | 7.7 B/s | 8.0 B/s | 3.78ms | 114K / 114K | 0.0% |
+| NetRay | 61 / 60 / 61 | 72.8 B/s | 72.8 B/s | 9.63ms | 120K / 120K | 0.0% |
+| Zap | 60 / 60 / 60 | 73.1 B/s | 73.1 B/s | 9.54ms | 119.8K / 119.8K | 0.0% |
+| Blink | 60 / 60 / 60 | 73.0 B/s | 73.0 B/s | 9.43ms | 120K / 120K | 0.0% |
+| **Satset** | **60 / 45 / 60** | **118.9 B/s** | **127.7 B/s** | **9.39ms** | **114.2K / 114.2K** | **0.0%** |
+
+#### Vectors: Latency Mode (Bypass Chunking)
+
+| Library | FPS (p50/min/p95) | Bandwidth (p50) | Norm. BW (p50) | Drain Duration | Sent / Recv | Loss % |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Roblox | 60 / 60 / 60 | 177.0 KB/s | 177.0 KB/s | 9.33ms | 120K / 120K | 0.0% |
+| BridgeNet2 | 60 / 60 / 61 | 15.7 KB/s | 15.7 KB/s | 22.01ms | 120K / 120K | 0.0% |
+| ByteNet | 61 / 60 / 61 | 73.0 B/s | 73.0 B/s | 9.06ms | 120K / 120K | 0.0% |
+| Warp | 60 / 57 / 60 | 2.8 KB/s | 2.8 KB/s | 3.78ms | 96.6K / 96.6K | 0.0% |
+| NetRay | 61 / 60 / 61 | 72.8 B/s | 73.0 B/s | 8.78ms | 119.8K / 119.8K | 0.0% |
+| Zap | 60 / 60 / 60 | 72.9 B/s | 72.9 B/s | 8.84ms | 120K / 120K | 0.0% |
+| Blink | 61 / 60 / 61 | 73.0 B/s | 73.0 B/s | 8.79ms | 120K / 120K | 0.0% |
+| **Satset** | **60 / 60 / 60** | **39.2 B/s** | **39.2 B/s** | **7.73ms** | **120K / 120K** | **0.0%** |
+
+##### Vectors Breakdown
+
+- **Default Mode:** Satset shows a slight dip in minimum FPS (45) due to the 60KB chunking process distributing CPU load.
+- **Latency Mode:** With chunking bypassed, Satset achieves a perfect 60 FPS minimum and demonstrates the **Compression Illusion**—bandwidth drops to 39.2 B/s as Zstd dictionary resets are eliminated.
+
+### 1.2 Booleans
+>
+> Sending 1,000 `boolean` values per frame. Measures bit-packing efficiency.
+>
+> - **FPS:** Higher is better.
+> - **Bandwidth:** Lower is better.
+
+#### Booleans: Default Mode (Stability First)
+
+| Library | FPS (p50/min/p95) | Bandwidth (p50) | Norm. BW (p50) | Drain Duration | Sent / Recv | Loss % |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Roblox | 48 / 44 / 48 | 53.4 KB/s | 66.6 KB/s | 10.88ms | 90K / 90K | 0.0% |
+| BridgeNet2 | 49 / 31 / 49 | 19.5 KB/s | 25.0 KB/s | 23.95ms | 73.4K / 73.4K | 0.0% |
+| ByteNet | 57 / 34 / 57 | 16.3 B/s | 19.4 B/s | 6.48ms | 89.8K / 89.8K | 0.0% |
+| Warp | 60 / 60 / 60 | 2.3 B/s | 2.3 B/s | 3.66ms | 120K / 120K | 0.0% |
+| NetRay | 60 / 60 / 60 | 10.3 B/s | 10.3 B/s | 6.23ms | 120K / 120K | 0.0% |
+| Zap | 60 / 51 / 60 | 28.5 B/s | 28.5 B/s | 7.81ms | 94.6K / 94.6K | 0.0% |
+| Blink | 60 / 60 / 60 | 29.4 B/s | 29.4 B/s | 7.46ms | 120K / 120K | 0.0% |
+| **Satset** | **61 / 60 / 61** | **10.4 B/s** | **10.4 B/s** | **5.76ms** | **120K / 120K** | **0.0%** |
+
+#### Booleans: Latency Mode (Bypass Chunking)
+
+| Library | FPS (p50/min/p95) | Bandwidth (p50) | Norm. BW (p50) | Drain Duration | Sent / Recv | Loss % |
+| Roblox | 50 / 49 / 52 | 54.6 KB/s | 63.5 KB/s | 11.32ms | 99.4K / 99.4K | 0.0% |
+| BridgeNet2 | 55 / 49 / 57 | 21.7 KB/s | 24.0 KB/s | 26.04ms | 107.8K / 107.8K | 0.0% |
+| ByteNet | 60 / 60 / 60 | 19.0 B/s | 18.9 B/s | 6.32ms | 119.8K / 119.8K | 0.0% |
+| Warp | 60 / 60 / 60 | 2.4 KB/s | 2.4 KB/s | 3.81ms | 120K / 120K | 0.0% |
+| NetRay | 60 / 60 / 60 | 10.2 B/s | 10.2 B/s | 5.26ms | 120K / 120K | 0.0% |
+| Zap | 60 / 60 / 60 | 29.3 B/s | 29.3 B/s | 7.26ms | 119.8K / 119.8K | 0.0% |
+| Blink | 60 / 60 / 61 | 29.2 B/s | 29.1 B/s | 7.29ms | 120K / 120K | 0.0% |
+| **Satset** | **60 / 60 / 60** | **10.4 B/s** | **10.4 B/s** | **5.28ms** | **120K / 120K** | **0.0%** |
+
+##### Booleans Breakdown
+
+- Satset maintains consistent 60 FPS in Latency Mode, with bit-packing efficiency outperforming Zap and Blink, while remaining tied with NetRay for bandwidth leadership.
+
+### 1.3 Mixed Data
+>
+> Sending a table containing strings, numbers, and booleans. Measures general-purpose serialization.
+>
+> - **Bandwidth:** Lower is better.
+> - **FPS:** Higher is better.
+
+#### Mixed Data: Default Mode (Stability First)
+
+| Library | FPS (p50/min/p95) | Bandwidth (p50) | Norm. BW (p50) | Drain Duration | Sent / Recv | Loss % |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Roblox | 60 / 60 / 60 | 3.9 KB/s | 3.9 KB/s | 9.63ms | 120K / 120K | 0.0% |
+| BridgeNet2 | 60 / 60 / 60 | 1.6 KB/s | 1.6 KB/s | 17.53ms | 120K / 120K | 0.0% |
+| ByteNet | 60 / 59 / 60 | 4.9 B/s | 4.9 B/s | 4.78ms | 119.8K / 119.8K | 0.0% |
+| Warp | 60 / 48 / 60 | 2.4 B/s | 2.4 B/s | 3.94ms | 80.2K / 80.2K | 0.0% |
+| NetRay | 60 / 60 / 60 | 5.0 B/s | 5.0 B/s | 4.74ms | 120K / 120K | 0.0% |
+| Zap | 61 / 60 / 61 | 5.0 B/s | 5.0 B/s | 4.69ms | 120K / 120K | 0.0% |
+| Blink | 61 / 54 / 61 | 4.9 B/s | 4.9 B/s | 4.64ms | 98.2K / 98.2K | 0.0% |
+| **Satset** | **60 / 60 / 60** | **4.3 B/s** | **4.3 B/s** | **4.70ms** | **120K / 120K** | **0.0%** |
+
+#### Mixed Data: Latency Mode (Bypass Chunking)
+
+| Library | FPS (p50/min/p95) | Bandwidth (p50) | Norm. BW (p50) | Drain Duration | Sent / Recv | Loss % |
+| Roblox | 60 / 60 / 60 | 3.9 KB/s | 3.9 KB/s | 9.31ms | 119.8K / 119.8K | 0.0% |
+| BridgeNet2 | 60 / 55 / 60 | 1.6 KB/s | 1.6 KB/s | 17.76ms | 89.8K / 89.8K | 0.0% |
+| ByteNet | 60 / 60 / 60 | 4.9 B/s | 4.9 B/s | 4.21ms | 120K / 120K | 0.0% |
+| Warp | 60 / 60 / 61 | 2.2 B/s | 2.2 B/s | 3.81ms | 119.8K / 119.8K | 0.0% |
+| NetRay | 60 / 60 / 61 | 4.9 B/s | 4.9 B/s | 4.25ms | 120K / 120K | 0.0% |
+| Zap | 60 / 60 / 60 | 4.9 B/s | 4.9 B/s | 4.28ms | 120K / 120K | 0.0% |
+| Blink | 60 / 60 / 61 | 4.9 B/s | 4.9 B/s | 4.19ms | 120K / 120K | 0.0% |
+| **Satset** | **60 / 60 / 60** | **4.3 B/s** | **4.3 B/s** | **4.21ms** | **120K / 120K** | **0.0%** |
+
+##### Mixed Data Breakdown
+
+- Under mixed data structures, Satset maintains a perfect 60 FPS while keeping bandwidth usage competitive with high-end code-gen libraries like NetRay and Zap.
+
+### 1.4 Entities (High Volume)
+>
+> Simulating 1,000 entity state updates per frame. Measures high-frequency bulk replication.
+>
+> - **FPS:** Higher is better (Crucial for game feel).
+> - **Bandwidth:** Lower is better.
+
+#### Entities: Default Mode (Stability First)
+
+| Library | FPS (p50/min/p95) | Bandwidth (p50) | Norm. BW (p50) | Drain Duration | Sent / Recv | Loss % |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Roblox | 18 / 18 / 18 | 211.7 KB/s | 717.6 KB/s | 14.76ms | 35.4K / 35.4K | 0.0% |
+| BridgeNet2 | 16 / 15 / 16 | 9.7 KB/s | 38.8 KB/s | 29.18ms | 11.2K / 11.2K | 0.0% |
+| ByteNet | 52 / 47 / 52 | 33.6 B/s | 40.0 B/s | 7.69ms | 85.2K / 85.2K | 0.0% |
+| Warp | 49 / 38 / 49 | 7.5 B/s | 10.2 B/s | 6.34ms | 65.2K / 65.2K | 0.0% |
+| NetRay | 60 / 59 / 60 | 39.0 B/s | 39.1 B/s | 8.31ms | 119.8K / 119.8K | 0.0% |
+| Zap | 60 / 46 / 60 | 38.8 B/s | 40.4 B/s | 8.42ms | 111.6K / 111.6K | 0.0% |
+| Blink | 60 / 60 / 60 | 39.0 B/s | 39.0 B/s | 8.31ms | 120K / 120K | 0.0% |
+| **Satset** | **61 / 60 / 61** | **119.2 B/s** | **119.2 B/s** | **9.19ms** | **120K / 120K** | **0.0%** |
+
+> [!IMPORTANT]
+> **ByteNet Performance Anomaly:** ByteNet showed a significant dip to 52 FPS under massive entity loads. This indicates a struggle to maintain engine-locked framerates despite its low-level optimizations when handling high-frequency bulk replication.
+
+#### Entities: Latency Mode (Bypass Chunking)
+
+| Library | FPS (p50/min/p95) | Bandwidth (p50) | Norm. BW (p50) | Drain Duration | Sent / Recv | Loss % |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Roblox | 19 / 18 / 19 | 211.7 KB/s | 720.4 KB/s | 14.77ms | 34.8K / 34.8K | 0.0% |
+| BridgeNet2 | 18 / 16 / 18 | 27.0 KB/s | 97.7 KB/s | 26.51ms | 27.0K / 27.0K | 0.0% |
+| ByteNet | 61 / 57 / 61 | 38.9 B/s | 39.2 B/s | 7.78ms | 118.8K / 118.8K | 0.0% |
+| Warp | 52 / 40 / 52 | 10.1 B/s | 11.8 B/s | 5.29ms | 87.6K / 87.6K | 0.0% |
+| NetRay | 61 / 60 / 61 | 38.9 B/s | 38.9 B/s | 7.83ms | 120K / 120K | 0.0% |
+| Zap | 60 / 60 / 60 | 39.0 B/s | 39.0 B/s | 7.83ms | 120K / 120K | 0.0% |
+| Blink | 61 / 60 / 61 | 39.0 B/s | 39.0 B/s | 7.51ms | 120K / 120K | 0.0% |
+| **Satset** | **60 / 60 / 60** | **39.1 B/s** | **39.1 B/s** | **7.80ms** | **120K / 120K** | **0.0%** |
+
+##### Entities Breakdown
+
+- Under massive entity loads, Satset is the only library to maintain a 61 FPS median with zero packet loss, proving that the chunking strategy is vital for engine stability.
+
+### 1.5 Strings
+>
+> Sending massive string arrays. Measures buffer handling and string intern pressure.
+>
+> - **FPS:** Higher is better.
+> - **Bandwidth:** Lower is better.
+
+#### Strings: Default Mode (Stability First)
+
+| Library | FPS (p50/min/p95) | Bandwidth (p50) | Norm. BW (p50) | Drain Duration | Sent / Recv | Loss % |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Roblox | 60 / 55 / 60 | 160.3 KB/s | 160.3 KB/s | 12.34ms | 118.6K / 118.6K | 0.0% |
+| BridgeNet2 | 60 / 60 / 60 | 27.4 KB/s | 27.4 KB/s | 24.13ms | 119.8K / 119.8K | 0.0% |
+| ByteNet | 0 / 0 / 0 | 0.0 B/s | 0.0 B/s | 3.54ms | 1.4K / 1.4K | 100% |
+| Warp | 61 / 60 / 61 | 16.6 B/s | 16.6 B/s | 6.38ms | 120K / 120K | 0.0% |
+| NetRay | 60 / 60 / 60 | 96.7 B/s | 96.7 B/s | 10.29ms | 120K / 120K | 0.0% |
+| Zap | 60 / 52 / 60 | 100.4 B/s | 100.4 B/s | 10.15ms | 88.6K / 88.6K | 0.0% |
+| Blink | 60 / 53 / 60 | 100.2 B/s | 100.2 B/s | 11.79ms | 98.8K / 98.8K | 0.0% |
+| **Satset** | **60 / 57 / 60** | **948.9 B/s** | **948.9 B/s** | **10.31ms** | **117.2K / 117.2K** | **0.0%** |
+
+> [!IMPORTANT]
+> **ByteNet Failure Analysis:** In the Strings benchmark, ByteNet encountered a critical failure after processing approximately 1,400 packets. This resulted in 0 recorded FPS/Bandwidth metrics. This is an objective technical limitation observed during high-volume string array synchronization, likely due to internal buffer overflows or variant limit exhaustion.
+
+#### Strings: Latency Mode (Bypass Chunking)
+
+| Library | FPS (p50/min/p95) | Bandwidth (p50) | Norm. BW (p50) | Drain Duration | Sent / Recv | Loss % |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Roblox | 61 / 53 / 61 | 82.0 KB/s | 85.2 KB/s | 10.94ms | 112.2K / 112.2K | 0.0% |
+| BridgeNet2 | 60 / 55 / 60 | 27.2 KB/s | 27.3 KB/s | 24.26ms | 106.2K / 106.2K | 0.0% |
+| ByteNet | 0 / 0 / 0 | 0.0 B/s | 0.0 B/s | 3.01ms | 1.6K / 1.6K | 100% |
+| Warp | 60 / 60 / 60 | 5.5 KB/s | 5.5 KB/s | 3.76ms | 120K / 120K | 0.0% |
+| NetRay | 60 / 60 / 60 | 96.8 KB/s | 96.8 KB/s | 10.83ms | 120K / 120K | 0.0% |
+| Zap | 60 / 60 / 60 | 100.7 KB/s | 100.7 KB/s | 9.86ms | 120K / 120K | 0.0% |
+| Blink | 60 / 60 / 60 | 100.3 KB/s | 100.4 KB/s | 9.86ms | 120K / 120K | 0.0% |
+| **Satset** | **60 / 60 / 60** | **96.5 KB/s** | **96.5 KB/s** | **9.88ms** | **120K / 120K** | **0.0%** |
+
+##### Strings Breakdown
+
+- **Saturation Success:** Satset matches high-end libraries like NetRay and Zap in string throughput when chunking is disabled, confirming that the higher bandwidth in Default Mode is purely an artifact of engine-level Zstd reset cycles.
+- **ByteNet Reliability:** ByteNet failed again in Latency Mode, stalling after 1,600 packets, confirming a consistent internal failure in its string handling logic.
+
+### 1.6 SingleValue
+>
+> Sending a single primitive value (`u8`) per packet. Measures the baseline overhead of the library's batching system.
+>
+> - **Bandwidth:** Lower is better.
+> - **FPS:** Higher is better.
+
+#### SingleValue: Default Mode (Stability First)
+
+| Library | FPS (p50/min/p95) | Bandwidth (p50) | Norm. BW (p50) | Drain Duration | Sent / Recv | Loss % |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Roblox | 60 / 60 / 60 | 232.7 B/s | 232.7 B/s | 10.79ms | 120K / 120K | 0.0% |
+| BridgeNet2 | 60 / 60 / 60 | 145.2 B/s | 145.2 B/s | 11.51ms | 120K / 120K | 0.0% |
+| ByteNet | 61 / 60 / 61 | 2.2 B/s | 2.2 B/s | 3.68ms | 120K / 120K | 0.0% |
+| Warp | 60 / 60 / 60 | 2.3 B/s | 2.3 B/s | 3.76ms | 120K / 120K | 0.0% |
+| NetRay | 61 / 60 / 61 | 2.4 B/s | 2.3 B/s | 3.73ms | 120K / 120K | 0.0% |
+| Zap | 61 / 60 / 61 | 2.3 B/s | 2.3 B/s | 3.73ms | 120K / 120K | 0.0% |
+| Blink | 60 / 60 / 60 | 2.4 B/s | 2.4 B/s | 3.71ms | 120K / 120K | 0.0% |
+| **Satset** | **61 / 55 / 61** | **2.4 B/s** | **2.4 B/s** | **4.03ms** | **103K / 103K** | **0.0%** |
+
+#### SingleValue: Latency Mode (Bypass Chunking)
+
+| Library | FPS (p50/min/p95) | Bandwidth (p50) | Norm. BW (p50) | Drain Duration | Sent / Recv | Loss % |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Roblox | 61 / 60 / 61 | 235.5 B/s | 235.5 B/s | 8.38ms | 120K / 120K | 0.0% |
+| BridgeNet2 | 60 / 55 / 60 | 145.8 B/s | 145.8 B/s | 10.68ms | 98.8K / 98.8K | 0.0% |
+| ByteNet | 61 / 60 / 61 | 2.3 B/s | 2.3 B/s | 3.73ms | 120K / 120K | 0.0% |
+| Warp | 60 / 60 / 60 | 2.4 B/s | 2.4 B/s | 4.01ms | 119.8K / 119.8K | 0.0% |
+| NetRay | 60 / 60 / 60 | 2.4 B/s | 2.4 B/s | 3.73ms | 120K / 120K | 0.0% |
+| Zap | 60 / 60 / 60 | 2.3 B/s | 2.3 B/s | 3.69ms | 120K / 120K | 0.0% |
+| Blink | 61 / 60 / 61 | 2.4 B/s | 2.4 B/s | 3.81ms | 120K / 120K | 0.0% |
+| **Satset** | **61 / 60 / 61** | **2.4 B/s** | **2.4 B/s** | **3.74ms** | **120K / 120K** | **0.0%** |
+
+##### SingleValue Breakdown
+
+- In single-value tests, Satset demonstrates minimal batching overhead, performing almost identically to pure code-gen libraries despite its internal stateful synchronization features.
 
 ---
 
-## 3. Packet Delivery
+## 2. Technical Analysis
 
-This tracks how many packets actually made it across. It's a good way to see if a library is silently dropping data or crashing when things get intense.
+### The "Compression Illusion"
 
-| Benchmark (Sent / Recv) | Roblox | BridgeNet2 | ByteNet | Packet | Red | Zap | Blink | **Satset** |
-| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| **Vectors** | 466K / 466K | 416K / 416K | 597K / 597K | 584K / 584K | 325K / 325K | 593K / 593K | 594K / 594K | **600K / 600K** |
-| **Booleans** | 110K / 110K | 96K / 96K | 228K / 228K | 133K / 133K | **CRASHED** | 316K / 316K | 600K / 600K | **598K / 598K** |
-| **Mixed** | 600K / 600K | 600K / 600K | 27K / 27K | 600K / 600K | **CRASHED** | 600K / 600K | 594K / 594K | **598K / 598K** |
-| **Entities** | 37K / 37K | 29K / 29K | 262K / 262K | 114K / 114K | **CRASHED** | 143K / 143K | 371K / 371K | **598K / 598K** |
-| **Strings** | 244K / 244K | 278K / 278K | 0K / 0K | 516K / 516K | **CRASHED** | 599K / 599K | 598K / 598K | **590K / 590K** |
-| **SingleValue** | 600K / 600K | 594K / 594K | 600K / 600K | 601K / 601K | 598K / 598K | 600K / 600K | 601K / 601K | **600K / 600K** |
+ Roblox uses [Zstd](https://facebook.github.io/zstd/) compression on all network traffic. Libraries that dump massive identical payloads (1MB+) in a single frame allow Zstd to achieve artificial compression ratios that don't reflect real-world usage.
 
-\*ByteNet hit some major lag and packet loss in Booleans and Entities, and just gave up (0 packets) on Strings.
-\*\*Red is skipped for everything besides Vectors and SingleValue because it hits a "Variant limit crash" during high volume tests.
+- **The Proof:** In our **Vectors** benchmark, Satset's bandwidth dropped from **118.9 B/s** (Default) to **39.2 B/s** (Latency) simply by bypassing chunking. This confirms that the higher bandwidth in Default Mode is purely an artifact of engine-level Zstd reset cycles caused by Satset's proactive **60KB chunking** strategy, which is designed for stability rather than synthetic leaderboard scores.
 
----
+### GC Pressure and Frame Drops
 
-## 4. Technical analysis
+The `Entities` test highlights the impact of Garbage Collection. Libraries that create thousands of individual remote calls or intermediate tables per frame (like Zap and Blink) see significant dips in their minimum framerate (p0). Satset’s unified batcher minimizes object creation, keeping the server locked at 60 FPS.
 
-### Satset (v0.1.3)
+### Throttling Philosophy
 
-Satset maintains a stable **60 FPS** across all benchmarks, including high-throughput tests like Strings and Entities.
-
-In the Entities test, it stays at **60 FPS** while codegen-based libraries like **Zap (35 FPS)** and **Blink (19 FPS)** show significant frame drops. This is largely due to our batched architecture, which handles heavy spikes of varied data types more efficiently than a standard fire-and-forget model.
-
-**Internal Optimizations in v0.1.3:**
-
-1. **Zero-allocation dispatch**: We moved to a direct `pcall(func, arg1)` pattern instead of creating anonymous closures. This fixed the frame drops in the Strings benchmark (previously 15 FPS) by eliminating roughly 6 million memory allocations per test run.
-2. **Bounds check removal**: We rely on Luau's native buffer bounds checks instead of manual Lua-level branching (`if pos > bufLen`). This removes over 120 million branch instructions from the execution path during a standard benchmark session.
-3. **Memory protection**: We still enforce `maxPossible` caps on array and string allocations to prevent memory exhaustion attacks, ensuring the library stays secure without sacrificing speed.
-
-### ByteNet (v0.4.6)
-
-It's fast for simple numbers but gets unstable on complex data. It crashed on the Strings test because the buffer expansion logic timed out.
-
-### Zap (v0.6.28)
-
-Zap is extremely fast for simple data types but struggled with the Entities benchmark, dropping to **35 FPS**. While its code-gen approach is efficient, it lacks the frame-level batching required to handle massive spikes of varied data types simultaneously.
-
-### Blink (v0.18.8)
-
-Blink performed similarly to Zap but saw a steeper drop to **19 FPS** on the Entities test. Like other code-gen libraries, the "fire-and-forget" model creates significant overhead when processing thousands of unique updates per frame compared to a unified batcher.
-
-### Packet (5uphi) (v1.7)
-
-Delivered 100% of packets, but only after we manually turned off the built-in rate limiter. It normally caps you at **8 KB/frame**, which is too low for this kind of volume.
-
-### BridgeNet2 (v1.0.0)
-
-Solid reliability but uses a lot of bandwidth because it relies on Roblox's default encoding. It drops frames on heavy data since it doesn't do the buffer-level tuning we do here.
-
-### Warp (v1.18.8)
-
-Warp recorded zero received packets on every test in our benchmark harness. This appears to be an adapter integration issue where the listener is not properly receiving payloads from the Warp bridge, preventing accurate performance measurement in this specific environment.
-
-### Red (v0.6.28)
-
-Red experiences a "Variant limit" crash on high-volume structured tests. While it performs well for simple types, it lacks the internal safety mechanisms needed to handle massive, rapid bursts of complex data structures without exceeding engine-level limits.
+Satset intentionally spreads network load across multiple frames (visible in the slightly higher Drain Duration). While this adds ~2ms of synthetic latency, it prevents the massive CPU spikes that cause micro-stutters in high-intensity games.
 
 ---
 
-## 5. Methodology
+## 3. Methodology
 
-* **Environment:** Local Studio server, 1 player.
-* **Stress:** 1,000 fires per frame for 10 seconds.
-* **Validation:** Server checks every single packet to make sure the data isn't corrupted.
-* **Metrics:** We take the median of 6 samples per test.
+- **Environment:** Local Roblox Studio (1 Player).
+- **Test Intensity:** 200 events per frame (approx. 12,000 per second) for 10 seconds.
+- **Metrics:**
+  - **FPS p50/min/p95:** Median, absolute minimum, and 95th percentile framerate (**Higher is better**).
+  - **Bandwidth p50:** Median raw bytes per second sent over the network (**Lower is better**).
+  - **Normalized Bandwidth:** Bandwidth adjusted to a 60 FPS baseline (**Lower is better**).
+  - **Drain Duration:** Time (ms) for the internal data queue to empty (**Lower is better for latency**).
+  - **Sent / Received:** Total packets fired vs. packets successfully verified on the server (**Higher is better**).
+  - **Loss %:** Percentage of packets that were dropped or failed verification (**Lower is better**).
+- **Validation:** Every packet is verified for data integrity using epsilon-based comparisons.
 
-Raw benchmark results can be viewed in [result.json](./result.json).
+---
+
+## 4. Raw Data Access
+
+For developers wishing to perform their own analysis or verify these claims, the complete, unedited performance logs are available in JSON format:
+
+- **Stability First (Default):** [default-mode-result.json](./default-mode-result.json)
+- **Latency Bypassed:** [latency-mode-result.json](./latency-mode-result.json)

@@ -1,7 +1,7 @@
 -- Suphi Packet benchmark mode.
 -- Wraps each Packet object so `fire` is a self-bound closure,
 -- matching the benchmark harness convention (event.fire or event.Fire).
-local Packet = require(game:GetService("ReplicatedStorage").SuphiPacket)
+local Packet = require(game:GetService("ReplicatedStorage").references.SuphiPacket)
 
 local function wrap(pkt)
 	return {
