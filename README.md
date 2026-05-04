@@ -142,7 +142,7 @@ For a detailed step-by-step walkthrough of a packet's lifecycle, see the [Archit
 Add Satset to your `wally.toml`:
 
 ```toml
-Satset = "bookek/satset@0.1.3"
+Satset = "bookek/satset@0.2.0"
 ```
 
 Then run `wally install`.

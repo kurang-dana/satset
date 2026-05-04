@@ -1,6 +1,6 @@
 # [Satset](https://github.com/bookek/satset) Networking Benchmarks
 
-**Last Updated:** May 5, 2026 (Satset v0.1.3)
+**Last Updated:** May 5, 2026 (Satset v0.2.0)
 
 These benchmarks compare **Satset** against native Roblox remotes and popular community libraries. To ensure a fair comparison, all metrics are normalized to a 60 FPS baseline, even when a library causes the engine's framerate to drop.
 

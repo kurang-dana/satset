@@ -8,7 +8,7 @@ Add Satset to your `wally.toml`:
 
 ```toml
 [dependencies]
-Satset = "bookek/satset@0.1.3"
+Satset = "bookek/satset@0.2.0"
 ```
 
 Then run:
