@@ -4,6 +4,9 @@ local DISABLED_MODES = {}
 
 local Modes = {}
 for _, Mode in script:GetChildren() do
+	if Mode == script then
+		continue
+	end
 	if DISABLED_MODES[Mode.Name] or not Mode:IsA("ModuleScript") then
 		continue
 	end

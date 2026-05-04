@@ -1,27 +1,30 @@
 local RunService = game:GetService("RunService")
-local Red = require(game:GetService("ReplicatedStorage").Red)
 
 local Benches = require(game:GetService("ReplicatedStorage").Shared.benches)
 local IsServer = RunService:IsServer()
 
 local Events = {}
-local NetAPI
+local NetRayAPI
 
 if IsServer then
-	NetAPI = Red.Server("RedBenchmark")
+	NetRayAPI = require(script.Parent.netray_compile_gen.Server)
 else
-	NetAPI = Red.Client("RedBenchmark")
+	NetRayAPI = require(script.Parent.netray_compile_gen.Client)
 end
 
 for Name in Benches do
 	Events[Name] = {
 		fire = function(data)
 			if not IsServer then
-				NetAPI:Fire(Name, data)
+				NetRayAPI[Name].Fire(data)
 			end
 		end,
 		listen = function(callback)
-			NetAPI:On(Name, callback)
+			if IsServer then
+				NetRayAPI[Name].On(callback)
+			else
+				NetRayAPI[Name].On(callback)
+			end
 		end,
 	}
 end

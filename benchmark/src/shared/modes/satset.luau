@@ -1,6 +1,6 @@
 -- Satset benchmark mode.
 local RunService = game:GetService("RunService")
-local Satset = require(game:GetService("ReplicatedStorage").DevPackages.Satset)
+local Satset = require(game:GetService("ReplicatedStorage").references.Satset)
 local Types = Satset.Types
 
 -- We don't call Satset.start() here anymore.
@@ -46,7 +46,7 @@ local Packets = {
 	}),
 	Vectors = Satset.definePacket({
 		name = "SatsetBenchVectors",
-		schema = { value = Types.array(Types.Vector3) },
+		schema = { value = Types.array(Types.Vector3F16) },
 		reliable = true,
 	}),
 	Strings = Satset.definePacket({
@@ -59,8 +59,8 @@ local Packets = {
 		schema = {
 			id = Types.u8,
 			health = Types.u8,
-			position = Types.Vector3,
-			velocity = Types.Vector3,
+			position = Types.Vector3F16,
+			velocity = Types.Vector3F16,
 			name = Types.string8,
 			isRunning = Types.bool,
 			animation = Types.u8,

@@ -19,6 +19,9 @@
 		},
 		"ReplicatedStorage": {
 			"$className": "ReplicatedStorage",
+			"DevPackages": {
+				"$path": "../DevPackages"
+			},
 			"Shared": {
 				"$path": "src/shared",
 				"GetRecieved": {
@@ -28,17 +31,20 @@
 					"$className": "RemoteEvent"
 				}
 			},
-			"DevPackages": {
-				"$path": "../DevPackages",
+			"references": {
+				"$className": "Folder",
 				"Satset": {
 					"$path": "../src"
+				},
+				"Warp": {
+					"$path": "../references/Warp/src"
+				},
+				"Blink": {
+					"$path": "../references/blink/src"
+				},
+				"SuphiPacket": {
+					"$path": "../references/5uphi-Packet/Packet"
 				}
-			},
-			"SuphiPacket": {
-				"$path": "../references/5uphi-Packet/Packet"
-			},
-			"Red": {
-				"$path": "../references/Red/lib"
 			}
 		}
 	}

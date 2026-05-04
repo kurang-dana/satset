@@ -148,16 +148,4 @@ local Queue: any = {
 	Unreliable = table.create(256),
 }
 
-export type Entity = { id: number, x: number, y: number, z: number, orientation: number, animation: number }
-export type MixedStruct = {
-	id: number,
-	health: number,
-	position: Vector3,
-	velocity: Vector3,
-	name: string,
-	isRunning: boolean,
-	animation: number,
-	team: number,
-}
-
 return {}
