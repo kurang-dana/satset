@@ -6,6 +6,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), version
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-05
+
+This version focuses on bandwidth efficiency and more flexible batching. The biggest addition is a dual-mode batching engine—now you can choose between **Stability** (chunking payloads to keep frame-rates consistent) and **Latency** (raw throughput without segmentation). We've also added several high-efficiency data types like `f16` and bit-packed booleans for those who want to optimize down to the bit.
+
+### Added
+
+- **Dual-Mode Batching**: You now have full control via `reliableThreshold`. Stability mode segments large payloads so Roblox doesn't "choke," while Latency mode bypasses segmentation to let Zstd compression work much more effectively.
+- **Data Type Optimizations**: Added `f16` and `Vector3F16` for syncing data that doesn't need full 32-bit precision.
+- **Boolean Bit-packing**: Boolean arrays now use only 1 bit per element. This is a massive bandwidth saver for bulk data.
+- **NetRay Adapter**: The benchmark suite now supports NetRay (IDL-compiled).
+- **Auto-label PRs**: A new GitHub Action automatically labels PRs based on branch name prefixes.
+
+### Changed
+
+- **Benchmark Overhaul**: The benchmark system is now more modular, using a cleaner adapter-based design.
+- **Document Restoration**: Fully restored and updated the README and technical guides to match the 0.2.0 standards.
+- **MTU Logic**: Improved how large batches are handled in Stability mode for better reliability.
+- **Tooling**: Updated `rokit.toml` to include Lune and tidied up `.gitignore` to keep local testing folders out of the repo.
+
 ## [0.1.3] — 2026-05-01
 
 This update introduces significant protocol optimizations, high-performance serialization fast-paths, and refined documentation.
