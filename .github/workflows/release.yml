@@ -60,7 +60,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          rokit trust rojo-rbx/rojo UpliftGames/wally Kampfkarren/selene JohnnyMorganz/stylua
+          rokit trust rojo-rbx/rojo UpliftGames/wally Kampfkarren/selene JohnnyMorganz/stylua lune-org/lune
           rokit install
 
       - name: Build RBXM
