@@ -177,9 +177,9 @@ batching = {
     reliableThreshold = 60000, -- Segmentation at 60KB
     maxPacketsPerFrame = 0     -- No rate limiting (default)
 }
-```yaml
-In this mode, Satset segments large payloads to stay within Roblox's internal buffer limits, preventing "packet too large" errors and ensuring the engine can process network traffic smoothly.
 ```
+
+> In this mode, Satset segments large payloads to stay within Roblox's internal buffer > limits, preventing "packet too large" errors and ensuring the engine can process network ?traffic smoothly.
 
 ### Latency Mode
 
@@ -190,5 +190,6 @@ batching = {
     reliableThreshold = 0, -- Bypass segmentation
     maxPacketsPerFrame = 0 
 }
-```yaml
-By setting `reliableThreshold` to 0, Satset sends payloads as a single segment. This reduces protocol overhead and allows the engine's underlying Zstd compression to work much more efficiently, often resulting in significantly lower bandwidth usage in benchmarks.
+```
+
+> By setting `reliableThreshold` to 0, Satset sends payloads as a single segment. This reduces protocol overhead and allows the engine's underlying Zstd compression to work much more efficiently, often resulting in significantly lower bandwidth usage in benchmarks.
