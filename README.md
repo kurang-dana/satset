@@ -19,22 +19,20 @@ The library is built on the principle that code on the hot path should not alloc
 
 # Performance Benchmarks
 
-Satset is designed for high-throughput scenarios. We maintain a [benchmark suite](benchmark/Benchmarks.md) that measures Satset against native RemoteEvents and other established libraries.
+Satset is designed for high-throughput scenarios. We maintain a [benchmark suite](benchmark/Benchmarks.md) that measures Satset against native RemoteEvents and other common implementations.
 
-## Stability vs. Latency Modes
+## Dual-Mode Batching
 
-Satset offers a unique **Dual-Mode** batching engine. Users can tune the library for maximum engine stability (segmenting large payloads) or absolute minimum latency (raw throughput).
+Satset provides two batching strategies. Users can tune the library for engine stability (segmenting large payloads) or raw throughput.
 
-| Test Case (1,000 items/frame) | Satset (Stability) | Satset (Latency) | Native Remotes | ByteNet |
-| :--- | :--- | :--- | :--- | :--- |
-| **Vectors** | 4.2 MB/s | **39.2 B/s** | 213.7 MB/s | 72.8 B/s |
-| **Strings** | 18.4 MB/s | **118.9 B/s** | 140.2 MB/s | FAIL* |
-| **Booleans** | 485.4 KB/s | **38.1 B/s** | 160.9 MB/s | 72.6 B/s |
+| Test Case (1,000 items/frame) | Satset (Stability) | Satset (Latency) | Native Remotes |
+| :--- | :--- | :--- | :--- |
+| **Vectors** | 4.2 MB/s | **39.2 B/s** | 213.7 MB/s |
+| **Strings** | 18.4 MB/s | **118.9 B/s** | 140.2 MB/s |
+| **Booleans** | 485.4 KB/s | **38.1 B/s** | 160.9 MB/s |
 
 > [!NOTE]
-> **The Compression Illusion**: Satset's latency mode achieves "impossibly low" bandwidth because it bypasses engine-level batching overhead, allowing [Zstd](https://github.com/facebook/zstd) to compress the entire payload as a single segment. In standard production use (Stability Mode), Satset segments payloads at 60KB to ensure engine frame-time consistency.
-
-*\*ByteNet consistently fails to synchronize large string arrays under high-volume stress (Buffer Overflow).*
+> **Payload Segmentation**: In standard use (Stability Mode), Satset segments payloads at 60KB to ensure frame-time consistency. Latency mode sends larger segments to allow better compression density when needed.
 
 Detailed methodology and raw data can be found in the [Benchmarks Report](benchmark/Benchmarks.md).
 
@@ -63,14 +61,11 @@ Satset provides two distinct communication modes:
 
 ## Implementation Details
 
-- **Zero-Allocation Pipeline**: Everything happens in pre-allocated buffers. We pass arguments directly to `pcall` to avoid closure allocations on the hot path, keeping your FPS steady even under massive stress.
-- **Built-in Security**: We rely on Luau's native buffer bounds checks instead of manual Lua-level branching. If someone sends a bad payload, the global `pcall` catches it without the extra CPU cost of manual checks.
-- **OOM Protection**: We cap dynamic data (like strings and arrays) based on the physical buffer size. This prevents memory exhaustion attacks while maintaining performance.
-- **Sanitized Floats**: All floating-point types (`f32`, `f64`, `Vector3`, etc.) are clamped against `NaN` and `±Infinity` to prevent state corruption.
-- **Native Performance**: We use Luau VM [fastcalls](https://luau.org/performance) for buffer and math built-ins to stay as close to native speed as possible.
-- **Smart Batching**: Remote calls are deferred until `PostSimulation`, ensuring exactly one remote invocation per player per frame.
-- **Reliability Layers**: Native support for [UnreliableRemoteEvent](https://create.roblox.com/docs/reference/engine/classes/UnreliableRemoteEvent) with sequence numbers and stale packet checks.
-- **Header Stripping**: Automatically identifies fixed-size schemas and omits the 2-byte size header. This reduces protocol overhead by up to 40% for small, frequent packets.
+- **Zero-Allocation Pipeline**: Core operations happen in pre-allocated buffers. We use a callback-based dispatch model to minimize heap allocations on the hot path.
+- **Built-in Security**: Relies on Luau's native buffer bounds checks. Payload errors are caught via `pcall` to maintain stability without redundant manual checks.
+- **Buffer Safety**: Dynamic data (strings/arrays) is capped relative to the physical buffer size to prevent memory-related issues.
+- **Sanitized Floats**: Floating-point types (`f32`, `f64`, `Vector3`, etc.) are clamped to 0 if they are `NaN` or `±Infinity` to prevent state corruption.
+- **Header Stripping**: Automatically identifies fixed-size schemas and omits size headers when possible to reduce protocol overhead.
 - **MTU Management**: Automatic fragmentation for batches exceeding the [MTU](https://en.wikipedia.org/wiki/Maximum_transmission_unit) limit.
 - **Guard**: Built-in server-side rate limiting using a token bucket algorithm to prevent spam.
 
@@ -142,7 +137,7 @@ For a detailed step-by-step walkthrough of a packet's lifecycle, see the [Archit
 Add Satset to your `wally.toml`:
 
 ```toml
-Satset = "bookek/satset@0.2.0"
+Satset = "bookek/satset@0.3.1-rc.1"
 ```
 
 Then run `wally install`.

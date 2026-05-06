@@ -6,6 +6,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), version
 
 ## [Unreleased]
 
+## [0.3.1-rc.1] — 2026-05-06
+
+This update introduces a zero-allocation decoding pipeline by switching to a callback-dispatch architecture. This shift allows the library to handle high-frequency data throughput without increasing the memory footprint. We've also cleaned up internal requires and adjusted global access patterns to better align with the Luau compiler's default optimization behavior.
+
+### Added
+
+- **Zero-Allocation Decoding**: Implemented a callback-based pipeline that bypasses table creation during packet processing. This reduces GC pressure significantly, maintaining a stable 1 KB memory footprint even under 50M+ operations.
+- **Luau Compiler Alignment**: Adjusted global access patterns in the hot path to ensure the Luau compiler can apply its standard optimization opcodes without interference.
+
+### Changed
+
+- **Relative Requires**: Standardized internal module resolution to use relative paths. This improves portability and resolves LSP resolution issues when using Satset as a dependency in Rojo or Wally environments.
+
+### Fixed
+
+- **Float Sanitization**: Corrected edge cases in the core types module where `NaN` or `Infinity` values could bypass the protection guard.
+- **Type Resolution**: Fixed several Luau type-inference warnings and documentation typos in `Types/init.luau`.
+
 ## [0.2.0] — 2026-05-05
 
 This version focuses on bandwidth efficiency and more flexible batching. The biggest addition is a dual-mode batching engine—now you can choose between **Stability** (chunking payloads to keep frame-rates consistent) and **Latency** (raw throughput without segmentation). We've also added several high-efficiency data types like `f16` and bit-packed booleans for those who want to optimize down to the bit.
