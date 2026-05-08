@@ -41,3 +41,19 @@ Standard and optimized types for schemas.
 
 - `Vector3Quantized(range: number)`: Compressed Vector3 (6 bytes). Maps a stud range (default 1024) into 16-bit signed integers. Provides ~0.03 stud precision while reducing size by 50% compared to standard f32.
 - `Vector2Quantized(range: number)`: Compressed Vector2 (4 bytes). Same quantization approach for 2D coordinates.
+
+## Readable Aliases
+
+Satset provides human-readable aliases for all primitive types. These are the recommended names for cleaner, more self-documenting schemas. The shorthand forms (`u8`, `f64`, etc.) remain available for developers who prefer brevity.
+
+| Recommended | Shorthand |
+| :--- | :--- |
+| `string` | `string16` |
+| `uint8` | `u8` |
+| `int8` | `i8` |
+| `uint16` | `u16` |
+| `int16` | `i16` |
+| `uint32` | `u32` |
+| `int32` | `i32` |
+| `float32` | `f32` |
+| `float64` | `f64` |

@@ -16,17 +16,38 @@ Initializes the networking engine. Must be called once on both server and client
 
 ### `Satset.definePacket(config: PacketConfig): Packet`
 
-Defines a new stateless packet.
+Defines a new stateless packet. Returns a `Packet` object with `fireServer`, `fireClient`, `fireAllClients`, and `listen` methods.
 
 ### `Satset.defineChannel(config: ChannelConfig): Channel`
 
 Defines a new stateful channel.
 
+### `Satset.struct(schema: { [string]: Type }): Type`
+
+Wraps a schema table into a reusable `Type` object. This enables nested struct support inside packets and channels.
+
+```luau
+local Types = Satset.Types
+
+local PlayerInfo = Satset.struct({
+    name = Types.string,
+    level = Types.u16,
+})
+
+local PartyPacket = Satset.definePacket({
+    name = "Party",
+    schema = {
+        leader = PlayerInfo,
+        members = Types.array(PlayerInfo),
+    }
+})
+```
+
 ## Properties
 
 ### `Satset.Version`
 
-A string containing the current library version (e.g. `"0.3.1"`).
+A string containing the current library version (e.g. `"0.3.2"`).
 
 ### `Satset.Types`
 

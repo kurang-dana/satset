@@ -62,6 +62,8 @@ Satset provides two distinct communication modes:
 ## Implementation Details
 
 - **Zero-Allocation Pipeline**: Core operations happen in pre-allocated buffers. We use a callback-based dispatch model to minimize heap allocations on the hot path.
+- **Nested Structs**: Use `Satset.struct(schema)` to create reusable, composable type objects for complex nested schemas.
+- **Readable Type Names**: Provides human-readable aliases (`string`, `uint8`, `float64`, etc.) alongside shorthand forms for cleaner, more self-documenting schemas.
 - **Built-in Security**: Relies on Luau's native buffer bounds checks. Payload errors are caught via `pcall` to maintain stability without redundant manual checks.
 - **Buffer Safety**: Dynamic data (strings/arrays) is capped relative to the physical buffer size to prevent memory-related issues.
 - **Sanitized Floats**: Floating-point types (`f32`, `f64`, `Vector3`, etc.) are clamped to 0 if they are `NaN` or `±Infinity` to prevent state corruption.
@@ -78,6 +80,7 @@ flowchart TB
     subgraph API["Public API"]
         DP["definePacket()"]
         DC["defineChannel()"]
+        ST["struct()"]
     end
 
     subgraph Serialization
@@ -107,6 +110,7 @@ flowchart TB
     DC --> CH
 
     PK -->|"encode(schema, data)"| SR
+    ST -->|"compile nested"| SC
     SR --> SC
     SR --> SN
     SC --> TP
@@ -137,7 +141,7 @@ For a detailed step-by-step walkthrough of a packet's lifecycle, see the [Archit
 Add Satset to your `wally.toml`:
 
 ```toml
-Satset = "protheeuz/satset@0.3.1"
+Satset = "protheeuz/satset@0.3.2"
 ```
 
 Then run `wally install`.

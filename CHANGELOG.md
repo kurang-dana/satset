@@ -6,6 +6,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), version
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-05-08
+
+### Added
+
+- **Nested Structs**: Introduced `Satset.struct()`, allowing developers to wrap schemas into reusable `Type` objects for complex, nested data structures.
+- **Readable Type Aliases**: Added long-form aliases (`float64`, `uint8`, `string`, etc.) to improve schema readability and developer experience.
+
+### Fixed
+
+- **Wally Distribution**: Refined the `exclude` list in `wally.toml` to prevent development artifacts (`CHANGELOG`, `scratch`, `comparison`) from being included in the installation package.
+- **Schema Compiler**: Fixed edge cases in `buildFixedDecoder` for schemas with 0 fields or 4+ fields, ensuring robust decoding across all packet sizes.
+
 ## [0.3.1] — 2026-05-08
 
 This update introduces a zero-allocation decoding pipeline by switching to a callback-dispatch architecture. This shift allows the library to handle high-frequency data throughput without increasing the memory footprint. We've also cleaned up internal requires and adjusted global access patterns to better align with the Luau compiler's default optimization behavior.
