@@ -137,7 +137,7 @@ For a detailed step-by-step walkthrough of a packet's lifecycle, see the [Archit
 Add Satset to your `wally.toml`:
 
 ```toml
-Satset = "protheeuz/satset@0.3.1-rc.1"
+Satset = "protheeuz/satset@0.3.1"
 ```
 
 Then run `wally install`.

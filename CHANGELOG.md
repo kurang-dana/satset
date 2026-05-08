@@ -6,7 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), version
 
 ## [Unreleased]
 
-## [0.3.1-rc.1] — 2026-05-06
+## [0.3.1] — 2026-05-08
 
 This update introduces a zero-allocation decoding pipeline by switching to a callback-dispatch architecture. This shift allows the library to handle high-frequency data throughput without increasing the memory footprint. We've also cleaned up internal requires and adjusted global access patterns to better align with the Luau compiler's default optimization behavior.
 
