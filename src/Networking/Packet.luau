@@ -1,10 +1,10 @@
 -- This file is part of the Satset networking library and is licensed under MIT License; see LICENSE.txt for details
 -- Packet — the public API for stateless, fire-and-forget networking.
 
-local Batcher = require("../Core/Batcher")
-local SchemaCompiler = require("../Serialization/SchemaCompiler")
-local Serializer = require("../Serialization/Serializer")
-local Types = require("../Types")
+local Batcher = require(script.Parent.Parent.Core.Batcher)
+local SchemaCompiler = require(script.Parent.Parent.Serialization.SchemaCompiler)
+local Serializer = require(script.Parent.Parent.Serialization.Serializer)
+local Types = require(script.Parent.Parent.Types)
 
 local RunService = game:GetService("RunService")
 

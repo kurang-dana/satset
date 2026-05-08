@@ -3,8 +3,8 @@
 -- This file is part of the Satset networking library and is licensed under MIT License; see LICENSE.txt for details
 -- Serializer — handles the actual encoding and decoding of data into binary buffers.
 
-local Sanitizer = require("./Sanitizer")
-local SchemaCompiler = require("./SchemaCompiler")
+local Sanitizer = require(script.Parent.Sanitizer)
+local SchemaCompiler = require(script.Parent.SchemaCompiler)
 
 local Serializer = {}
 
