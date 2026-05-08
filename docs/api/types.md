@@ -19,6 +19,7 @@ Standard and optimized types for schemas.
 
 ## Strings
 
+- `string`: Recommended default. Alias for `string16` (2 + N bytes).
 - `string8`: Max length 255 chars (1 + N bytes). Consists of a 1-byte `u8` length header followed by N bytes of UTF-8 string data.
 - `string16`: Max length 65,535 chars (2 + N bytes). Consists of a 2-byte `u16` length header followed by N bytes of UTF-8 string data.
 

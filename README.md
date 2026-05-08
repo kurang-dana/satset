@@ -137,7 +137,7 @@ For a detailed step-by-step walkthrough of a packet's lifecycle, see the [Archit
 Add Satset to your `wally.toml`:
 
 ```toml
-Satset = "bookek/satset@0.3.1-rc.1"
+Satset = "protheeuz/satset@0.3.1-rc.1"
 ```
 
 Then run `wally install`.
@@ -155,11 +155,9 @@ Satset.start({
     guard = {
         maxTokens = 60,
         refillRate = 30,
-        studioBypass = true -- Enabled by default
     },
     batching = {
         reliableThreshold = 60000, -- Segmentation for stability
-        maxPacketsPerFrame = 0     -- No frame-spreading
     }
 })
 ```
@@ -171,7 +169,7 @@ Packets are for "fire-and-forget" events like combat hits, chat messages, or UI 
 **Shared Definition:**
 
 ```luau
--- Shared/Packets.luau
+-- ReplicatedStorage/Networking/Packets.luau
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Satset = require(ReplicatedStorage.Packages.Satset)
 local Types = Satset.Types
@@ -224,7 +222,7 @@ Channels are for data that has "state" (like health or positions). They use **de
 **Shared Definition:**
 
 ```luau
--- Shared/Channels.luau
+-- ReplicatedStorage/Networking/Channels.luau
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Satset = require(ReplicatedStorage.Packages.Satset)
 local Types = Satset.Types

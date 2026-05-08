@@ -60,15 +60,13 @@ sequenceDiagram
         BT-->>PK: entries[]
         loop For each entry
             PK->>PK: pcall(decode)
-            PK->>SR: decode(compiledSchema, entryPayload)
+            PK->>SR: decodeFrom(compiled, buffer, offset, dispatch)
+            SR->>SR: uses callback-based iteration
             SR->>SN: sanitizeFloat(value) for each number field
             SR->>SN: checkBounds(buffer, cursor, size)
-            SR-->>PK: decoded data table
-            alt pcall succeeds
-                PK->>Dev: listener(data, sender)
-            else buffer out-of-bounds
-                PK--xPK: silent drop
-            end
+            SR-->>PK: invokes dispatch(...) callback
+            PK->>Dev: listener(data, sender)
+            Note over PK: data table constructed only if listeners exist
         end
     else Token exhausted
         GD--xPK: packet dropped silently

@@ -21,6 +21,7 @@ This update introduces a zero-allocation decoding pipeline by switching to a cal
 
 ### Fixed
 
+- **Roblox Pathing**: Replaced string-based relative requires with standard Roblox instance-based paths (`script.Parent`). This resolves critical errors when requiring Satset modules inside Roblox Studio and ensures full compatibility with `.rbxm` distribution.
 - **Float Sanitization**: Corrected edge cases in the core types module where `NaN` or `Infinity` values could bypass the protection guard.
 - **Type Resolution**: Fixed several Luau type-inference warnings and documentation typos in `Types/init.luau`.
 

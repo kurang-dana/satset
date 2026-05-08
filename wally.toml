@@ -1,11 +1,11 @@
 [package]
-name = "bookek/satset"
+name = "protheeuz/satset"
 description = "High-performance, buffer-backed hybrid networking for Roblox with zero-allocation delta synchronization."
 version = "0.3.1-rc.1"
 license = "MIT"
-authors = ["Iqbal F"]
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
+authors = ["Iqbal F"]
 exclude = [
 	"**/*.rbxl",
 	"**/*.rbxlx",
