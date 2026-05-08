@@ -47,7 +47,7 @@ local PartyPacket = Satset.definePacket({
 
 ### `Satset.Version`
 
-A string containing the current library version (e.g. `"0.3.2"`).
+A string containing the current library version (e.g. `"0.3.3"`).
 
 ### `Satset.Types`
 

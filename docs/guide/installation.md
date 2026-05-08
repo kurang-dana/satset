@@ -8,7 +8,7 @@ Add Satset to your `wally.toml`:
 
 ```toml
 [dependencies]
-Satset = "protheeuz/satset@0.3.2"
+Satset = "protheeuz/satset@0.3.3"
 ```
 
 Then run:
