@@ -15,4 +15,4 @@ sourcemap.json
 references/
 DevPackages/
 scratch/
-comparison/
+comparison/.agent/
