@@ -6,6 +6,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), version
 
 ## [Unreleased]
 
+## [0.3.3] — 2026-05-08
+
+### Fixed
+
+- **Wally Distribution**: Excluded `README.md` and `CHANGELOG.md` from the installation package to further reduce size and clutter.
+
 ## [0.3.2] — 2026-05-08
 
 ### Added

@@ -1,7 +1,7 @@
 [package]
 name = "protheeuz/satset"
 description = "High-performance, buffer-backed hybrid networking for Roblox with zero-allocation delta synchronization."
-version = "0.3.2"
+version = "0.3.3"
 license = "MIT"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
@@ -12,6 +12,8 @@ exclude = [
 	"**/*.rbxlx",
 	"**/*.rbxm",
 	"**/*.lock",
+	"README.md",
+	"CHANGELOG.md",
 	".gitattributes",
 	".gitignore",
 	".github",
@@ -20,7 +22,6 @@ exclude = [
 	"scratch",
 	"benchmark",
 	"benchmarks",
-	"docs",
 	"references",
 	"Packages",
 	"DevPackages",
@@ -29,7 +30,6 @@ exclude = [
 	"stylua.toml",
 	"selene.toml",
 	"rokit.toml",
-	"CONTRIBUTING.md",
 ]
 
 [dev-dependencies]
