@@ -895,4 +895,15 @@ function Types.enum(values: { string }): Type<string>
 	}
 end
 
+-- [ Aliases for ByteNet Compatibility ]
+Types.string = Types.string16
+Types.uint8 = Types.u8
+Types.int8 = Types.i8
+Types.uint16 = Types.u16
+Types.int16 = Types.i16
+Types.uint32 = Types.u32
+Types.int32 = Types.i32
+Types.float32 = Types.f32
+Types.float64 = Types.f64
+
 return Types
