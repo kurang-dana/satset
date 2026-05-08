@@ -87,7 +87,11 @@ end
 local function buildFixedDecoder(fields: { FieldDef }): (b: buffer, offset: number, callback: (...any) -> ()) -> ()
 	local count = #fields
 
-	if count == 1 then
+	if count == 0 then
+		return function(_: buffer, _: number, callback: (...any) -> ())
+			callback()
+		end
+	elseif count == 1 then
 		local f1 = fields[1]
 		local read1, off1 = f1.type.read, f1.offset
 		return function(b: buffer, offset: number, callback: (...any) -> ())
@@ -118,14 +122,12 @@ local function buildFixedDecoder(fields: { FieldDef }): (b: buffer, offset: numb
 	end
 
 	return function(b: buffer, offset: number, callback: (...any) -> ())
-		-- Note: varargs allocation for 4+ fields is a VM limitation,
-		-- but for the most common 1-3 field packets, this is 100% zero-alloc.
-		callback(
-			reads[1](b, offset + offsets[1]),
-			reads[2](b, offset + offsets[2]),
-			reads[3](b, offset + offsets[3]),
-			reads[4](b, offset + offsets[4])
-		)
+		-- For 4+ fields, we use a loop to avoid accessing nil values.
+		local values = table.create(count)
+		for i = 1, count do
+			values[i] = reads[i](b, offset + offsets[i])
+		end
+		callback(table.unpack(values))
 	end
 end
 
